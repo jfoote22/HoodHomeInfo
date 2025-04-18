@@ -619,7 +619,7 @@ export default function TideChart() {
         
         {/* Disclaimer text */}
         <div className="mt-4 text-xs text-gray-500 italic">
-          <p>Disclaimer: These predictions are based upon the latest information available from NOAA. The data has not been subjected to the National Ocean Service's quality control procedures.</p>
+          <p>Disclaimer: These predictions are based upon the latest information available from NOAA. The data has not been subjected to the National Ocean Service&apos;s quality control procedures.</p>
         </div>
       </div>
     </CollapsibleContainer>
