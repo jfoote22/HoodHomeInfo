@@ -4,21 +4,27 @@ import { convertToCoreMessages, streamText } from "ai";
 export const runtime = "edge";
 
 export async function POST(req: Request) {
-  try {
-    // Check if API key is available
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey || apiKey === "your_anthropic_api_key") {
-      return new Response(
-        JSON.stringify({
-          error: "Missing Anthropic API key. Please add your key to .env.local as ANTHROPIC_API_KEY."
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
+  // Check if Anthropic API key exists
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  
+  // Log API key status (only first 5 chars for security)
+  console.log(`Anthropic API key status: ${apiKey ? 'Present (starts with: ' + apiKey.substring(0, 5) + '...)' : 'Missing'}`);
+  
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({
+        error: "Anthropic API key is missing. Please add it to your environment variables as ANTHROPIC_API_KEY."
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
+  try {
     const { messages } = await req.json();
     
-    // Use the correct model name
+    // Attempt to initialize the Anthropic client with the provided key
+    console.log("Initializing Anthropic client and making API call...");
+    
     const result = await streamText({
       model: anthropic("claude-3-7-sonnet-20250219"),
       messages: convertToCoreMessages(messages),
@@ -54,12 +60,28 @@ export async function POST(req: Request) {
         Current time information is provided in the user messages when relevant.`,
     });
 
+    console.log("Anthropic API call successful");
     return result.toDataStreamResponse();
   } catch (error) {
     console.error("Anthropic API error:", error);
+    
+    // Provide more detailed error message
+    let errorMessage = "Unknown error connecting to Anthropic API";
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      // Check for common API key issues
+      if (errorMessage.includes("invalid x-api-key") || errorMessage.includes("auth")) {
+        errorMessage = "Invalid Anthropic API key. Please check that your key is correct and has the format 'sk-ant-api...'";
+      } else if (errorMessage.includes("network") || errorMessage.includes("ECONNREFUSED")) {
+        errorMessage = "Network error connecting to Anthropic API. Please check your internet connection.";
+      }
+    }
+    
     return new Response(
       JSON.stringify({
-        error: `Error connecting to Anthropic API: ${error instanceof Error ? error.message : 'Unknown error'}`
+        error: `Error connecting to Anthropic API: ${errorMessage}`
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
