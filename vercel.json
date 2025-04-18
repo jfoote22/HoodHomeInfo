@@ -1,6 +1,6 @@
 {
-  "buildCommand": "npm install -D tailwindcss postcss autoprefixer && npm run build",
-  "installCommand": "npm install --force",
+  "buildCommand": "npm install && npm install -D tailwindcss postcss autoprefixer && npm run build",
+  "installCommand": "npm install",
   "framework": "nextjs",
   "outputDirectory": ".next"
 } 
