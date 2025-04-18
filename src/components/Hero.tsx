@@ -78,8 +78,8 @@ export default function Hero() {
         </div>
         
         <p className="max-w-xl text-blue-100 mb-8">
-          Your complete guide to Hood Canal&apos;s weather, tides, celestial events, and local happenings.
-          Always stay informed about what&apos;s happening around you.
+          Your complete guide to Hood Canal's weather, tides, celestial events, and local happenings.
+          Always stay informed about what's happening around you.
         </p>
       </div>
       
