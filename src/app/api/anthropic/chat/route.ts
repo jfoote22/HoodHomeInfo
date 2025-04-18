@@ -1,5 +1,5 @@
-import { anthropic } from "@ai-sdk/anthropic";
-import { convertToCoreMessages, streamText } from "ai";
+import { streamText } from "ai";
+import Anthropic from "@anthropic-ai/sdk";
 
 export const runtime = "edge";
 
@@ -22,13 +22,14 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
     
-    // Attempt to initialize the Anthropic client with the provided key
-    console.log("Initializing Anthropic client and making API call...");
+    // Initialize the Anthropic client with the API key
+    console.log("Initializing Anthropic client with official SDK...");
+    const anthropicClient = new Anthropic({
+      apiKey: apiKey,
+    });
     
-    const result = await streamText({
-      model: anthropic("claude-3-7-sonnet-20250219"),
-      messages: convertToCoreMessages(messages),
-      system: `You are HoodHomeInfo, a helpful AI assistant for visitors and residents of Hood Canal, Washington.
+    // Create the system message
+    const systemPrompt = `You are HoodHomeInfo, a helpful AI assistant for visitors and residents of Hood Canal, Washington.
         
         About Hood Canal:
         Hood Canal is a fjord forming the western lobe, and one of the four main basins, of Puget Sound in the state of Washington. 
@@ -57,11 +58,35 @@ export async function POST(req: Request) {
         
         For tides specifically, Hood Canal's tides are influenced by Puget Sound and the Pacific Ocean, with two high tides and two low tides typically occurring each day.
         
-        Current time information is provided in the user messages when relevant.`,
+        Current time information is provided in the user messages when relevant.`;
+        
+    // Use the streaming API
+    const stream = await anthropicClient.messages.create({
+      model: "claude-3-7-sonnet-20250219",
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: messages,
+      stream: true,
+    });
+    
+    // Convert the Anthropic stream to a ReadableStream
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        for await (const chunk of stream) {
+          if (chunk.type === 'content_block_delta' && chunk.delta.text) {
+            controller.enqueue(new TextEncoder().encode(chunk.delta.text));
+          }
+        }
+        controller.close();
+      },
     });
 
     console.log("Anthropic API call successful");
-    return result.toDataStreamResponse();
+    return new Response(readableStream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+      },
+    });
   } catch (error) {
     console.error("Anthropic API error:", error);
     
@@ -72,7 +97,7 @@ export async function POST(req: Request) {
       errorMessage = error.message;
       
       // Check for common API key issues
-      if (errorMessage.includes("invalid x-api-key") || errorMessage.includes("auth")) {
+      if (errorMessage.includes("invalid") || errorMessage.includes("auth") || errorMessage.includes("key")) {
         errorMessage = "Invalid Anthropic API key. Please check that your key is correct and has the format 'sk-ant-api...'";
       } else if (errorMessage.includes("network") || errorMessage.includes("ECONNREFUSED")) {
         errorMessage = "Network error connecting to Anthropic API. Please check your internet connection.";
