@@ -77,7 +77,7 @@ export default function HomeChatBot() {
           ${localData.tides?.today ? `- Today's tides: ${localData.tides.today.map(t => `${t.type} at ${t.time}`).join(', ')}` : ''}`,
       },
     ],
-    onError: (error) => {
+    onError: (error: unknown) => {
       console.error("Chat API error:", error);
       setApiError(true);
       try {
@@ -85,8 +85,12 @@ export default function HomeChatBot() {
         if (typeof error === 'string') {
           // Check if it's a JSON string
           if (error.startsWith('{') && error.endsWith('}')) {
-            const errorObj = JSON.parse(error);
-            setErrorMessage(errorObj.error || "Unknown API error");
+            try {
+              const errorObj = JSON.parse(error);
+              setErrorMessage(errorObj.error || "Unknown API error");
+            } catch {
+              setErrorMessage(error);
+            }
           } else {
             setErrorMessage(error);
           }
