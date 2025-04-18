@@ -1,38 +1,43 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
 import OpenAI from "openai";
 
-const openai = new OpenAI();
-
 export async function POST(req: Request) {
-  const body = await req.json();
+  // Check if the OpenAI API key is available
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "OpenAI API key is not configured. Please add your OPENAI_API_KEY to the environment variables." },
+      { status: 500 }
+    );
+  }
 
-  const base64Audio = body.audio;
-
-  // Convert the base64 audio data to a Buffer
-  const audio = Buffer.from(base64Audio, "base64");
-
-  // Define the file path for storing the temporary WAV file
-  const filePath = "tmp/input.wav";
+  // Initialize the OpenAI client with the API key
+  const openai = new OpenAI({
+    apiKey: apiKey
+  });
 
   try {
-    // Write the audio data to a temporary WAV file synchronously
-    fs.writeFileSync(filePath, audio);
+    const formData = await req.formData();
+    const audioFile = formData.get('file');
+    
+    if (!audioFile || !(audioFile instanceof File)) {
+      return NextResponse.json(
+        { error: "No audio file provided or invalid file format" },
+        { status: 400 }
+      );
+    }
 
-    // Create a readable stream from the temporary WAV file
-    const readStream = fs.createReadStream(filePath);
-
-    const data = await openai.audio.transcriptions.create({
-      file: readStream,
+    const transcription = await openai.audio.transcriptions.create({
+      file: audioFile,
       model: "whisper-1",
     });
 
-    // Remove the temporary file after successful processing
-    fs.unlinkSync(filePath);
-
-    return NextResponse.json(data);
+    return NextResponse.json(transcription);
   } catch (error) {
     console.error("Error processing audio:", error);
-    return NextResponse.error();
+    return NextResponse.json(
+      { error: `Error processing audio: ${error instanceof Error ? error.message : String(error)}` },
+      { status: 500 }
+    );
   }
 }
