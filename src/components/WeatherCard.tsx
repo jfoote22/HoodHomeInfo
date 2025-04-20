@@ -203,15 +203,23 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-4 animate-pulse">
-        <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
+      <div className="rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md animate-pulse">
         <div className="flex justify-between items-center mb-6">
-          <div className="h-16 w-16 bg-gray-200 rounded-full"></div>
-          <div className="h-12 bg-gray-200 rounded w-1/3"></div>
+          <div className="flex items-center space-x-4">
+            <div className="h-10 w-10 bg-gray-200 rounded-full"></div>
+            <div>
+              <div className="h-8 bg-gray-200 rounded w-24 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-16"></div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="h-4 bg-gray-200 rounded w-16 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-24"></div>
+          </div>
         </div>
-        <div className="flex space-x-2 overflow-x-auto">
+        <div className="grid grid-cols-7 gap-1 pt-2">
           {[...Array(7)].map((_, i) => (
-            <div key={i} className="flex-shrink-0 w-20 h-24 bg-gray-200 rounded"></div>
+            <div key={i} className="h-24 bg-gray-200 rounded"></div>
           ))}
         </div>
       </div>
@@ -219,44 +227,44 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
   }
 
   if (error && !weatherData) {
-    return <div className="bg-white rounded-xl shadow-md p-4 text-red-500">{error}</div>;
+    return <div className="rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md text-red-500">{error}</div>;
   }
 
   if (!weatherData) {
-    return <div className="bg-white rounded-xl shadow-md p-4">Failed to load weather data</div>;
+    return <div className="rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md">Failed to load weather data</div>;
   }
 
-  const weatherContent = (
-    <>
+  return (
+    <div className="rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center space-x-4">
           {getWeatherIcon(weatherData.current.icon)}
           <div>
-            <p className="text-3xl font-bold">{weatherData.current.temp}°F</p>
-            <p className="text-gray-500">{weatherData.current.condition}</p>
+            <p className="text-4xl font-bold text-gray-800">{weatherData.current.temp}°F</p>
+            <p className="text-gray-600 text-lg">{weatherData.current.condition}</p>
           </div>
         </div>
         <div className="text-right">
-          <div className="flex items-center justify-end mb-1">
-            <Droplets className="w-4 h-4 text-blue-500 mr-1" />
-            <span className="text-sm text-gray-600">{weatherData.current.humidity}%</span>
+          <div className="flex items-center justify-end mb-2">
+            <Droplets className="w-5 h-5 text-blue-500 mr-2" />
+            <span className="text-sm font-medium text-gray-600">{weatherData.current.humidity}%</span>
           </div>
           <div className="flex items-center justify-end">
-            <Wind className="w-4 h-4 text-gray-500 mr-1" />
-            <span className="text-sm text-gray-600">{weatherData.current.windSpeed} mph {weatherData.current.windDirection}</span>
+            <Wind className="w-5 h-5 text-gray-500 mr-2" />
+            <span className="text-sm font-medium text-gray-600">{weatherData.current.windSpeed} mph {weatherData.current.windDirection}</span>
           </div>
         </div>
       </div>
       
-      <div className="flex space-x-4 overflow-x-auto pb-2">
-        {weatherData.forecast.map((day, index) => (
+      <div className="grid grid-cols-7 gap-1 pt-2">
+        {weatherData.forecast.slice(0, 7).map((day, index) => (
           <div
             key={index}
-            className="flex-shrink-0 w-24 text-center p-2 rounded-lg"
+            className="text-center p-1 rounded-lg hover:bg-white/50 transition-colors"
           >
-            <p className="text-sm font-medium text-gray-600 mb-1">{index === 0 ? 'Today' : day.day.substring(0, 3)}</p>
+            <p className="text-xs font-medium text-gray-700 mb-1">{index === 0 ? 'Today' : day.day.substring(0, 3)}</p>
             <div className="flex justify-center mb-1">{getWeatherIcon(day.icon)}</div>
-            <p className="text-xs text-gray-500">{day.condition}</p>
+            <p className="text-xs text-gray-500 truncate">{day.condition}</p>
             <div className="flex justify-between mt-1">
               <span className="text-xs font-medium text-gray-900">{day.temp.max}°</span>
               <span className="text-xs text-gray-500">{day.temp.min}°</span>
@@ -264,15 +272,6 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
           </div>
         ))}
       </div>
-    </>
-  );
-
-  return (
-    <CollapsibleContainer 
-      title={`Weather for ${location}`}
-      gradient="bg-gradient-to-r from-blue-500 to-cyan-400"
-    >
-      {weatherContent}
-    </CollapsibleContainer>
+    </div>
   );
 } 

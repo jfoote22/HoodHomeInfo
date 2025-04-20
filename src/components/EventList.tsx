@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Calendar, MapPin, Clock, Filter, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
-import CollapsibleContainer from './CollapsibleContainer';
 
 interface Event {
   id: string;
@@ -90,6 +89,29 @@ export default function EventList() {
     return `https://placehold.co/400x200/${bg}/${text}?text=${category}+Event`;
   };
 
+  // Function to get a category color
+  const getCategoryColor = (category: string): string => {
+    switch(category) {
+      case 'Music': return '#4a1c82';
+      case 'Arts': return '#a83f2e';
+      case 'Sports': return '#2e6ea8';
+      case 'Food': return '#50a82e';
+      case 'Community': return '#e6a42e';
+      default: return '#6b7280';
+    }
+  };
+
+  // Function to parse time into hours for sorting
+  const parseTimeToHours = (timeStr: string): number => {
+    const [time, period] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    
+    return hours + (minutes || 0) / 60;
+  };
+
   useEffect(() => {
     async function fetchEvents() {
       setLoading(true);
@@ -114,8 +136,8 @@ export default function EventList() {
           'Twanoh State Park'
         ];
         
-        // Generate 15 random events
-        const simulatedEvents = Array.from({ length: 15 }, (_, i) => {
+        // Generate 25 random events (increased from 15 to ensure events on most days)
+        const simulatedEvents = Array.from({ length: 25 }, (_, i) => {
           const category = eventCategories[Math.floor(Math.random() * eventCategories.length)];
           
           return {
@@ -163,200 +185,149 @@ export default function EventList() {
 
   const weekDays = getCurrentWeekDays();
 
+  // Group events by day
+  const eventsByDay = weekDays.map(day => {
+    const dayStr = getComparableDate(day);
+    const dayEvents = filteredEvents.filter(event => event.date === dayStr);
+    
+    // Sort by time
+    return {
+      date: day,
+      events: dayEvents.sort((a, b) => parseTimeToHours(a.time) - parseTimeToHours(b.time))
+    };
+  });
+
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-4 animate-pulse">
-        <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
-        <div className="h-10 bg-gray-200 rounded mb-4"></div>
+      <div className="h-full bg-gradient-to-r from-orange-500 to-rose-500 text-white rounded-xl shadow-md p-4 animate-pulse">
+        <div className="h-8 bg-white/20 rounded w-3/4 mb-4"></div>
+        <div className="h-10 bg-white/20 rounded mb-4"></div>
         <div className="grid grid-cols-7 gap-1 mb-4">
           {[...Array(7)].map((_, i) => (
-            <div key={i} className="h-10 bg-gray-200 rounded"></div>
+            <div key={i} className="h-10 bg-white/20 rounded"></div>
           ))}
         </div>
-        <div className="h-64 bg-gray-200 rounded"></div>
+        <div className="grid grid-cols-7 gap-1">
+          {[...Array(7)].map((_, i) => (
+            <div key={i} className="h-64 bg-white/20 rounded"></div>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <CollapsibleContainer 
-      title="Local Events"
-      gradient="bg-gradient-to-r from-orange-500 to-rose-500"
-    >
-      <div className="mb-4">
-        <button 
-          onClick={() => setFilterOpen(!filterOpen)}
-          className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg border border-gray-200"
-        >
-          <div className="flex items-center">
-            <Filter className="w-4 h-4 mr-2 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filter by Category: <span className="text-orange-600">{selectedCategory}</span></span>
-          </div>
-          {filterOpen ? (
-            <ChevronUp className="w-4 h-4 text-gray-500" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-gray-500" />
-          )}
-        </button>
+    <div className="h-full bg-gradient-to-r from-orange-500 to-rose-500 text-white rounded-xl shadow-md overflow-hidden">
+      <div className="p-4">
+        <h2 className="text-2xl font-bold mb-2">Local Events</h2>
         
-        {filterOpen && (
-          <div className="mt-2 p-2 bg-white border border-gray-200 rounded-lg">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {categories.map(category => (
-                <button
-                  key={category}
-                  onClick={() => {
-                    setSelectedCategory(category);
-                    setFilterOpen(false);
-                  }}
-                  className={`px-3 py-2 text-sm rounded-md ${
-                    selectedCategory === category
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Calendar Navigation */}
-      <div className="flex items-center justify-between mb-4">
-        <button 
-          onClick={goToPreviousWeek}
-          className="p-2 rounded-lg hover:bg-gray-100"
-        >
-          <ChevronLeft className="h-5 w-5 text-gray-600" />
-        </button>
-        
-        <div className="text-center">
-          <div className="text-sm font-medium text-gray-700">
-            {formatDayMonth(weekDays[0])} - {formatDayMonth(weekDays[6])}
-          </div>
-          <button 
-            onClick={goToCurrentWeek}
-            className="text-xs text-blue-600 hover:underline"
-          >
-            Today
-          </button>
-        </div>
-        
-        <button 
-          onClick={goToNextWeek}
-          className="p-2 rounded-lg hover:bg-gray-100"
-        >
-          <ChevronRight className="h-5 w-5 text-gray-600" />
-        </button>
-      </div>
-
-      {/* Calendar Day Headers */}
-      <div className="grid grid-cols-7 gap-1 mb-2 text-center">
-        {weekDays.map((day, index) => (
-          <div 
-            key={index} 
-            className={`p-2 text-sm font-medium rounded-t-lg ${
-              day.toDateString() === new Date().toDateString() 
-                ? 'bg-orange-100 text-orange-800' 
-                : 'bg-gray-50 text-gray-700'
-            }`}
-          >
-            <div>{formatDayName(day)}</div>
-            <div className="text-xs">{day.getDate()}</div>
-          </div>
-        ))}
-      </div>
-      
-      {/* Calendar Events */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-4">
-        <div className="grid grid-cols-7 gap-1 min-h-[300px]">
-          {weekDays.map((day, dayIndex) => {
-            // Get events for this day
-            const dayEvents = filteredEvents.filter(
-              event => event.date === getComparableDate(day)
-            );
-            
-            return (
-              <div 
-                key={dayIndex} 
-                className={`p-1 border-r last:border-r-0 border-gray-100 ${
-                  day.toDateString() === new Date().toDateString() 
-                    ? 'bg-orange-50' 
-                    : ''
+        {/* Compact category filter */}
+        <div className="mb-3">
+          <div className="flex items-center space-x-2 text-sm overflow-x-auto pb-2 scrollbar-hide">
+            {categories.map(category => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-3 py-1 rounded-full whitespace-nowrap ${
+                  selectedCategory === category
+                    ? 'bg-white text-orange-600 font-medium'
+                    : 'bg-white/20 hover:bg-white/30'
                 }`}
               >
-                {dayEvents.length === 0 ? (
-                  <div className="h-full w-full flex items-center justify-center text-xs text-gray-400">
-                    No events
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {dayEvents.map(event => (
-                      <div 
-                        key={event.id} 
-                        className={`p-1.5 rounded text-xs cursor-pointer hover:opacity-90
-                          ${event.category === 'Music' ? 'bg-purple-100 text-purple-800' : ''}
-                          ${event.category === 'Arts' ? 'bg-red-100 text-red-800' : ''}
-                          ${event.category === 'Sports' ? 'bg-blue-100 text-blue-800' : ''}
-                          ${event.category === 'Food' ? 'bg-green-100 text-green-800' : ''}
-                          ${event.category === 'Community' ? 'bg-yellow-100 text-yellow-800' : ''}
-                        `}
-                      >
-                        <div className="font-medium truncate">{event.title}</div>
-                        <div className="text-2xs flex items-center">
-                          <Clock className="w-2.5 h-2.5 mr-0.5 flex-shrink-0" />
-                          {event.time}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Compact week navigation */}
+        <div className="flex items-center justify-between mb-2 text-sm">
+          <button onClick={goToPreviousWeek} className="p-1 hover:bg-white/20 rounded">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          
+          <button onClick={goToCurrentWeek} className="px-2 py-1 bg-white/20 hover:bg-white/30 rounded-md text-xs">
+            This Week
+          </button>
+          
+          <div className="font-medium">
+            {formatDayMonth(weekDays[0])} - {formatDayMonth(weekDays[6])}
+          </div>
+          
+          <button onClick={goToNextWeek} className="p-1 hover:bg-white/20 rounded">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      
+      {/* Events organized in vertical columns by day */}
+      <div className="bg-white/10 backdrop-blur-sm p-3">
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-1 mb-2 text-xs text-center font-medium sticky top-0 bg-white/10 backdrop-blur-sm z-10 py-1">
+          {weekDays.map((day, index) => {
+            const isToday = day.toDateString() === new Date().toDateString();
+            return (
+              <div 
+                key={index} 
+                className={`py-1 rounded ${isToday ? 'bg-white/30' : ''}`}
+              >
+                {formatDayName(day)}
+                <div className="font-bold">{day.getDate()}</div>
               </div>
             );
           })}
         </div>
-      </div>
-
-      {/* Upcoming Events List */}
-      <h3 className="text-lg font-medium mb-3">Upcoming Events</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filteredEvents.slice(0, 6).map(event => (
-          <div key={event.id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-            <div className="relative h-32 w-full">
-              <Image 
-                src={event.image}
-                alt={event.title}
-                fill
-                style={{ objectFit: 'cover' }}
-              />
-              <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded-full text-xs font-medium text-gray-700">
-                {event.category}
-              </div>
+        
+        {/* Event columns */}
+        <div className="grid grid-cols-7 gap-1 max-h-[calc(100vh-22rem)] overflow-y-auto">
+          {eventsByDay.map((dayData, dayIndex) => (
+            <div key={dayIndex} className="flex flex-col gap-2 min-h-[12rem]">
+              {dayData.events.length > 0 ? (
+                dayData.events.map(event => (
+                  <div 
+                    key={event.id} 
+                    className="bg-white text-gray-800 rounded p-2 text-xs shadow relative"
+                    style={{ borderLeft: `3px solid ${getCategoryColor(event.category)}` }}
+                  >
+                    <div className="font-semibold truncate">{event.title}</div>
+                    <div className="flex items-center mt-1">
+                      <Clock className="w-3 h-3 mr-1 flex-shrink-0 text-gray-500" />
+                      <span className="text-gray-700">{event.time}</span>
+                    </div>
+                    <div className="flex items-center mt-1 truncate">
+                      <MapPin className="w-3 h-3 mr-1 flex-shrink-0 text-gray-500" />
+                      <span className="text-gray-700 truncate">{event.location}</span>
+                    </div>
+                    <div 
+                      className="absolute top-2 right-2 w-4 h-4 rounded-full text-[8px] flex items-center justify-center text-white"
+                      style={{ backgroundColor: getCategoryColor(event.category) }}
+                    >
+                      {event.category.charAt(0)}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-white/50 text-center text-xs italic pt-2">
+                  No events
+                </div>
+              )}
             </div>
-            
-            <div className="p-3">
-              <h3 className="font-medium text-sm text-gray-800 mb-2 truncate">{event.title}</h3>
-              
-              <div className="flex items-center text-xs text-gray-600 mb-1">
-                <Calendar className="w-3 h-3 mr-1 text-gray-400" />
-                <span>{event.date}</span>
-              </div>
-              
-              <div className="flex items-center text-xs text-gray-600 mb-1">
-                <Clock className="w-3 h-3 mr-1 text-gray-400" />
-                <span>{event.time}</span>
-              </div>
-              
-              <div className="flex items-center text-xs text-gray-600">
-                <MapPin className="w-3 h-3 mr-1 text-gray-400" />
-                <span className="truncate">{event.location}</span>
-              </div>
-            </div>
+          ))}
+        </div>
+        
+        {/* No events message (only show if no events for the entire week) */}
+        {eventsByDay.every(day => day.events.length === 0) && (
+          <div className="bg-white/20 rounded-lg p-4 text-center mt-4">
+            <p>No events found for the selected category this week.</p>
+            <button 
+              onClick={() => setSelectedCategory('All')}
+              className="mt-2 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-md text-sm"
+            >
+              Show all categories
+            </button>
           </div>
-        ))}
+        )}
       </div>
-    </CollapsibleContainer>
+    </div>
   );
 } 

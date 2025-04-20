@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sun, Moon, ChevronDown } from 'lucide-react';
-import HomeChatBot from './HomeChatBot';
+import { Sun, Moon, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function Hero() {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [scrollIndicator, setScrollIndicator] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   useEffect(() => {
     // Update time every minute
@@ -14,20 +13,13 @@ export default function Hero() {
       setCurrentTime(new Date());
     }, 60000);
     
-    // Hide scroll indicator after scrolling
-    const handleScroll = () => {
-      if (window.scrollY > 100) {
-        setScrollIndicator(false);
-      } else {
-        setScrollIndicator(true);
-      }
-    };
-    
-    window.addEventListener('scroll', handleScroll);
+    // Prevent auto-scrolling
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0);
+    }
     
     return () => {
       clearInterval(timer);
-      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -44,8 +36,8 @@ export default function Hero() {
   });
 
   return (
-    <div className="relative min-h-[60vh] bg-gradient-to-b from-blue-900 via-indigo-800 to-purple-900 text-white flex flex-col items-center justify-center px-4 py-16 mb-8">
-      <div className="absolute inset-0 overflow-hidden">
+    <div className={`relative bg-gradient-to-b from-blue-900 via-indigo-800 to-purple-900 text-white flex flex-col items-center justify-center px-4 ${isExpanded ? 'py-10' : 'py-6'} rounded-xl shadow-md transition-all duration-300`}>
+      <div className="absolute inset-0 overflow-hidden rounded-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-800/50 via-indigo-800/50 to-purple-800/50 bg-cover bg-center opacity-70">
           {/* Pattern overlay */}
           <div className="absolute inset-0 opacity-10" style={{ 
@@ -55,46 +47,38 @@ export default function Hero() {
         </div>
       </div>
       
-      <div className="relative z-10 text-center">
-        <h1 className="text-4xl md:text-6xl font-bold mb-2">
-          Hood Canal
-        </h1>
-        <h2 className="text-xl md:text-3xl font-light mb-6">
-          Local Information Hub
-        </h2>
-        
-        <div className="inline-flex items-center bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full mb-8">
-          <div className="flex items-center mr-6">
-            {currentTime.getHours() >= 6 && currentTime.getHours() < 18 ? (
-              <Sun className="w-5 h-5 mr-2 text-yellow-300" />
-            ) : (
-              <Moon className="w-5 h-5 mr-2 text-blue-200" />
+      {/* Toggle button */}
+      <button 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="absolute bottom-1 right-3 text-white/70 hover:text-white focus:outline-none z-10"
+        aria-label={isExpanded ? "Collapse header" : "Expand header"}
+      >
+        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+      </button>
+      
+      <div className="relative z-10 text-center w-full max-w-lg">
+        <div className={`flex ${isExpanded ? 'flex-col' : 'flex-row flex-wrap'} items-center justify-center gap-4`}>
+          <h1 className={`${isExpanded ? 'text-5xl md:text-6xl' : 'text-3xl'} font-bold transition-all duration-300`}>
+            Hood Canal
+          </h1>
+          
+          <div className={`bg-white/10 backdrop-blur-sm px-5 py-3 rounded-lg transition-all duration-300 ${isExpanded ? 'w-full' : 'ml-2'}`}>
+            <div className="flex items-center justify-center">
+              {currentTime.getHours() >= 6 && currentTime.getHours() < 18 ? (
+                <Sun className={`${isExpanded ? 'w-7 h-7 mr-3' : 'w-5 h-5 mr-2'} text-yellow-300 transition-all duration-300`} />
+              ) : (
+                <Moon className={`${isExpanded ? 'w-7 h-7 mr-3' : 'w-5 h-5 mr-2'} text-blue-200 transition-all duration-300`} />
+              )}
+              <span className={`${isExpanded ? 'text-4xl' : 'text-xl'} font-bold transition-all duration-300`}>{formattedTime}</span>
+            </div>
+            {isExpanded && (
+              <div className="text-lg text-blue-100 mt-2">
+                {formattedDate}
+              </div>
             )}
-            <span className="text-xl font-semibold">{formattedTime}</span>
-          </div>
-          <div className="text-sm md:text-base text-blue-100">
-            {formattedDate}
           </div>
         </div>
-        
-        <p className="max-w-xl text-blue-100 mb-8">
-          Your complete guide to Hood Canal&apos;s weather, tides, celestial events, and local happenings.
-          Always stay informed about what&apos;s happening around you.
-        </p>
       </div>
-      
-      <div className="relative z-10 w-full max-w-2xl mx-auto mt-4 mb-4">
-        <div className="bg-white/20 backdrop-blur-md rounded-xl shadow-lg p-4">
-          <h2 className="text-xl font-semibold text-white mb-4">Need More Information?</h2>
-          <HomeChatBot />
-        </div>
-      </div>
-      
-      {scrollIndicator && (
-        <div className="absolute bottom-8 left-0 right-0 flex justify-center animate-bounce">
-          <ChevronDown className="w-8 h-8 text-white/70" />
-        </div>
-      )}
     </div>
   );
 } 
