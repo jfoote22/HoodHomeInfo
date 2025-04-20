@@ -6,7 +6,11 @@ import { Send, RotateCcw, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useLocalData } from '../lib/hooks/useLocalData';
 
-export default function HomeChatBot() {
+interface HomeChatBotProps {
+  fullWidth?: boolean;
+}
+
+export default function HomeChatBot({ fullWidth = false }: HomeChatBotProps) {
   const { localData, isLoading: isLoadingData } = useLocalData();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [apiError, setApiError] = useState(false);
@@ -76,13 +80,13 @@ export default function HomeChatBot() {
 
   return (
     <div className="bg-white rounded-xl overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[50vh]">
+      <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${fullWidth ? 'max-h-[20vh]' : 'max-h-[50vh]'}`}>
         {isLoadingData ? (
           <div className="text-center py-4 text-gray-500">Loading local data...</div>
         ) : (
           <>
             <div className="flex justify-start">
-              <div className="max-w-[80%] rounded-lg px-4 py-2 bg-blue-100 text-gray-800 rounded-bl-none">
+              <div className={`${fullWidth ? 'max-w-[95%]' : 'max-w-[80%]'} rounded-lg px-4 py-2 bg-blue-100 text-gray-800 rounded-bl-none`}>
                 <ReactMarkdown className="prose prose-sm">
                   {`Hi! I can help answer questions about Hood Canal - including weather, tides, events, and more. What would you like to know?`}
                 </ReactMarkdown>
@@ -95,7 +99,7 @@ export default function HomeChatBot() {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div 
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                  className={`${fullWidth ? 'max-w-[95%]' : 'max-w-[80%]'} rounded-lg px-4 py-2 ${
                     message.role === 'user' 
                       ? 'bg-blue-500 text-black rounded-br-none' 
                       : 'bg-blue-100 text-gray-800 rounded-bl-none'

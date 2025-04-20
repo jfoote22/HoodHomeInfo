@@ -36,4 +36,19 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-in forwards;
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
