@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import dynamic from 'next/dynamic';
+// import dynamic from 'next/dynamic';
 import Hero from '../components/Hero';
 import WeatherCard from '../components/WeatherCard';
 import TideChart from '../components/TideChart';
@@ -11,8 +11,8 @@ import HomeChatBot from '../components/HomeChatBot';
 import LunarPhase from '../components/LunarPhase';
 import LayoutToggle from '../components/LayoutToggle';
 
-// Import OrcaMap with SSR disabled
-const OrcaMap = dynamic(() => import('../components/OrcaMap'), { ssr: false });
+// Import OrcaMap with SSR disabled - temporarily disabled for deployment
+// const OrcaMap = dynamic(() => import('../components/OrcaMap'), { ssr: false });
 
 export default function Home() {
   const [isFullWidth, setIsFullWidth] = useState(false);
@@ -81,7 +81,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Orca Whale Watching Map */}
+      {/* Orca Whale Watching Map - temporarily removed for deployment */}
+      {/*
       <div className="max-w-[98%] mx-auto px-2 pb-16">
         <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-6 mb-4">
           <h2 className="text-2xl font-semibold text-indigo-900 mb-4">Orca Whale Sightings Map</h2>
@@ -89,6 +90,7 @@ export default function Home() {
           <OrcaMap />
         </div>
       </div>
+      */}
 
       {/* Layout Toggle Button */}
       <LayoutToggle onToggle={handleLayoutToggle} />
