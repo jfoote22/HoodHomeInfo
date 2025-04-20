@@ -80,14 +80,14 @@ export default function HomeChatBot({ fullWidth = false }: HomeChatBotProps) {
 
   return (
     <div className="bg-white rounded-xl overflow-hidden">
-      <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${fullWidth ? 'max-h-[20vh]' : 'max-h-[50vh]'}`}>
+      <div className={`flex-1 overflow-y-auto p-2 space-y-2 ${fullWidth ? 'max-h-[10vh]' : 'max-h-[20vh]'}`}>
         {isLoadingData ? (
-          <div className="text-center py-4 text-gray-500">Loading local data...</div>
+          <div className="text-center py-2 text-gray-500 text-sm">Loading local data...</div>
         ) : (
           <>
             <div className="flex justify-start">
-              <div className={`${fullWidth ? 'max-w-[95%]' : 'max-w-[80%]'} rounded-lg px-4 py-2 bg-blue-100 text-gray-800 rounded-bl-none`}>
-                <ReactMarkdown className="prose prose-sm">
+              <div className={`${fullWidth ? 'max-w-[95%]' : 'max-w-[90%]'} rounded-lg px-3 py-1.5 bg-blue-100 text-gray-800 rounded-bl-none text-sm`}>
+                <ReactMarkdown className="prose prose-xs">
                   {`Hi! I can help answer questions about Hood Canal - including weather, tides, events, and more. What would you like to know?`}
                 </ReactMarkdown>
               </div>
@@ -99,13 +99,13 @@ export default function HomeChatBot({ fullWidth = false }: HomeChatBotProps) {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div 
-                  className={`${fullWidth ? 'max-w-[95%]' : 'max-w-[80%]'} rounded-lg px-4 py-2 ${
+                  className={`${fullWidth ? 'max-w-[95%]' : 'max-w-[90%]'} rounded-lg px-3 py-1.5 ${
                     message.role === 'user' 
                       ? 'bg-blue-500 text-black rounded-br-none' 
                       : 'bg-blue-100 text-gray-800 rounded-bl-none'
-                  }`}
+                  } text-sm`}
                 >
-                  <ReactMarkdown className="prose prose-sm">
+                  <ReactMarkdown className="prose prose-xs">
                     {message.content}
                   </ReactMarkdown>
                 </div>
@@ -116,28 +116,28 @@ export default function HomeChatBot({ fullWidth = false }: HomeChatBotProps) {
         <div ref={messagesEndRef} />
       </div>
       
-      <form onSubmit={handleSubmit} className="p-3 border-t flex items-center bg-gray-50">
+      <form onSubmit={handleSubmit} className="p-2 border-t flex items-center bg-gray-50">
         <input
           type="text"
           value={input}
           onChange={handleInputChange}
-          placeholder="Ask about the tides, weather, or anything else..."
-          className="flex-1 p-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+          placeholder="Ask about Hood Canal..."
+          className="flex-1 p-1.5 text-sm border rounded-l-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
         />
         <button 
           type="submit" 
           disabled={isLoading || !input.trim() || isLoadingData}
-          className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-r-lg disabled:bg-blue-300"
+          className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-r-lg disabled:bg-blue-300"
         >
-          <Send size={20} />
+          <Send size={16} />
         </button>
         <button 
           type="button" 
           onClick={handleReload}
-          className="ml-2 p-2 text-gray-500 hover:text-gray-700 rounded-lg"
+          className="ml-1 p-1.5 text-gray-500 hover:text-gray-700 rounded-lg"
           title="Reset conversation"
         >
-          <RotateCcw size={20} />
+          <RotateCcw size={16} />
         </button>
       </form>
     </div>

@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { Cloud, Droplets, Wind, Sun, CloudRain, CloudSnow, CloudFog, CloudLightning } from 'lucide-react';
-import CollapsibleContainer from './CollapsibleContainer';
+
+// Mock data watermark component
+const MockDataWatermark = () => (
+  <div className="absolute bottom-0 right-0 z-50 bg-red-600 text-white text-xs px-2 py-1 rounded-tl-md font-bold opacity-80">
+    MOCK DATA
+  </div>
+);
 
 interface WeatherData {
   current: {
@@ -25,11 +31,13 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMockData, setIsMockData] = useState(false);
 
   useEffect(() => {
     async function fetchWeatherData() {
       setLoading(true);
       setError(null);
+      setIsMockData(false);
       
       try {
         // Get location coordinates from env variables
@@ -95,6 +103,7 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
         
         // Fallback to simulated data
         fallbackToSimulatedData();
+        setIsMockData(true); // Mark as mock data when falling back
       } finally {
         setLoading(false);
       }
@@ -189,21 +198,21 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
     return () => clearInterval(refreshInterval);
   }, []);
 
-  const getWeatherIcon = (iconName: string) => {
+  const getWeatherIcon = (iconName: string, className: string = 'w-8 h-8') => {
     switch (iconName) {
-      case 'sun': return <Sun className="w-8 h-8 text-yellow-500" />;
-      case 'cloud': return <Cloud className="w-8 h-8 text-gray-500" />;
-      case 'cloud-rain': return <CloudRain className="w-8 h-8 text-blue-500" />;
-      case 'cloud-snow': return <CloudSnow className="w-8 h-8 text-sky-300" />;
-      case 'cloud-fog': return <CloudFog className="w-8 h-8 text-gray-400" />;
-      case 'cloud-lightning': return <CloudLightning className="w-8 h-8 text-yellow-600" />;
-      default: return <Sun className="w-8 h-8 text-yellow-500" />;
+      case 'sun': return <Sun className={`${className} text-yellow-500`} />;
+      case 'cloud': return <Cloud className={`${className} text-gray-500`} />;
+      case 'cloud-rain': return <CloudRain className={`${className} text-blue-500`} />;
+      case 'cloud-snow': return <CloudSnow className={`${className} text-sky-300`} />;
+      case 'cloud-fog': return <CloudFog className={`${className} text-gray-400`} />;
+      case 'cloud-lightning': return <CloudLightning className={`${className} text-yellow-600`} />;
+      default: return <Sun className={`${className} text-yellow-500`} />;
     }
   };
 
   if (loading) {
     return (
-      <div className="rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md animate-pulse">
+      <div className="h-full rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md animate-pulse">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center space-x-4">
             <div className="h-10 w-10 bg-gray-200 rounded-full"></div>
@@ -227,50 +236,57 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
   }
 
   if (error && !weatherData) {
-    return <div className="rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md text-red-500">{error}</div>;
+    return <div className="h-full rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md text-red-500">{error}</div>;
   }
 
   if (!weatherData) {
-    return <div className="rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md">Failed to load weather data</div>;
+    return <div className="h-full rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md">Failed to load weather data</div>;
   }
 
   return (
-    <div className="rounded-xl p-6 bg-gradient-to-r from-blue-50 to-sky-50 shadow-md">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center space-x-4">
-          {getWeatherIcon(weatherData.current.icon)}
-          <div>
-            <p className="text-4xl font-bold text-gray-800">{weatherData.current.temp}°F</p>
-            <p className="text-gray-600 text-lg">{weatherData.current.condition}</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="flex items-center justify-end mb-2">
-            <Droplets className="w-5 h-5 text-blue-500 mr-2" />
-            <span className="text-sm font-medium text-gray-600">{weatherData.current.humidity}%</span>
-          </div>
-          <div className="flex items-center justify-end">
-            <Wind className="w-5 h-5 text-gray-500 mr-2" />
-            <span className="text-sm font-medium text-gray-600">{weatherData.current.windSpeed} mph {weatherData.current.windDirection}</span>
-          </div>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-7 gap-1 pt-2">
-        {weatherData.forecast.slice(0, 7).map((day, index) => (
-          <div
-            key={index}
-            className="text-center p-1 rounded-lg hover:bg-white/50 transition-colors"
-          >
-            <p className="text-xs font-medium text-gray-700 mb-1">{index === 0 ? 'Today' : day.day.substring(0, 3)}</p>
-            <div className="flex justify-center mb-1">{getWeatherIcon(day.icon)}</div>
-            <p className="text-xs text-gray-500 truncate">{day.condition}</p>
-            <div className="flex justify-between mt-1">
-              <span className="text-xs font-medium text-gray-900">{day.temp.max}°</span>
-              <span className="text-xs text-gray-500">{day.temp.min}°</span>
+    <div className="h-full bg-gradient-to-b from-blue-900 via-indigo-800 to-purple-900 text-white rounded-xl shadow-md overflow-hidden">
+      <div className="relative p-6">
+        {/* Current Weather */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center">
+            <div className="mr-4">
+              {getWeatherIcon(weatherData.current.icon, 'w-12 h-12')}
+            </div>
+            <div>
+              <h3 className="text-5xl font-bold text-white">{weatherData.current.temp}°F</h3>
+              <p className="text-blue-100 text-lg">{weatherData.current.condition}</p>
             </div>
           </div>
-        ))}
+          <div className="text-right text-blue-100">
+            <div className="flex items-center justify-end mb-2">
+              <Droplets className="w-5 h-5 mr-2 text-blue-300" />
+              <span>{weatherData.current.humidity}% Humidity</span>
+            </div>
+            <div className="flex items-center justify-end">
+              <Wind className="w-5 h-5 mr-2 text-blue-300" />
+              <span>{weatherData.current.windSpeed} mph {weatherData.current.windDirection}</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* 7-day Forecast */}
+        <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg">
+          <div className="grid grid-cols-7 gap-2">
+            {weatherData.forecast.map((day, index) => (
+              <div key={index} className="text-center">
+                <p className="text-sm font-medium text-blue-100">{index === 0 ? 'Today' : day.day.substring(0, 3)}</p>
+                <div className="my-2">
+                  {getWeatherIcon(day.icon, 'w-8 h-8 mx-auto')}
+                </div>
+                <p className="text-sm font-semibold text-white">{day.temp.max}°</p>
+                <p className="text-sm text-blue-200">{day.temp.min}°</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Show watermark for mock data */}
+        {isMockData && <MockDataWatermark />}
       </div>
     </div>
   );

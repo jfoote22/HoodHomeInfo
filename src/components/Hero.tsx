@@ -36,7 +36,7 @@ export default function Hero() {
   });
 
   return (
-    <div className={`relative bg-gradient-to-b from-blue-900 via-indigo-800 to-purple-900 text-white flex flex-col items-center justify-center px-4 ${isExpanded ? 'py-10' : 'py-6'} rounded-xl shadow-md transition-all duration-300`}>
+    <div className="h-full relative bg-gradient-to-b from-blue-900 via-indigo-800 to-purple-900 text-white flex flex-col items-center justify-center px-4 py-10 rounded-xl shadow-md">
       <div className="absolute inset-0 overflow-hidden rounded-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-800/50 via-indigo-800/50 to-purple-800/50 bg-cover bg-center opacity-70">
           {/* Pattern overlay */}
@@ -47,35 +47,24 @@ export default function Hero() {
         </div>
       </div>
       
-      {/* Toggle button */}
-      <button 
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="absolute bottom-1 right-3 text-white/70 hover:text-white focus:outline-none z-10"
-        aria-label={isExpanded ? "Collapse header" : "Expand header"}
-      >
-        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-      </button>
-      
-      <div className="relative z-10 text-center w-full max-w-lg">
-        <div className={`flex ${isExpanded ? 'flex-col' : 'flex-row flex-wrap'} items-center justify-center gap-4`}>
-          <h1 className={`${isExpanded ? 'text-5xl md:text-6xl' : 'text-3xl'} font-bold transition-all duration-300`}>
+      <div className="relative z-10 text-center w-full max-w-lg py-6">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <h1 className="text-5xl md:text-6xl font-bold">
             Hood Canal
           </h1>
           
-          <div className={`bg-white/10 backdrop-blur-sm px-5 py-3 rounded-lg transition-all duration-300 ${isExpanded ? 'w-full' : 'ml-2'}`}>
+          <div className="bg-white/10 backdrop-blur-sm px-5 py-3 rounded-lg w-full">
             <div className="flex items-center justify-center">
               {currentTime.getHours() >= 6 && currentTime.getHours() < 18 ? (
-                <Sun className={`${isExpanded ? 'w-7 h-7 mr-3' : 'w-5 h-5 mr-2'} text-yellow-300 transition-all duration-300`} />
+                <Sun className="w-7 h-7 mr-3 text-yellow-300" />
               ) : (
-                <Moon className={`${isExpanded ? 'w-7 h-7 mr-3' : 'w-5 h-5 mr-2'} text-blue-200 transition-all duration-300`} />
+                <Moon className="w-7 h-7 mr-3 text-blue-200" />
               )}
-              <span className={`${isExpanded ? 'text-4xl' : 'text-xl'} font-bold transition-all duration-300`}>{formattedTime}</span>
+              <span className="text-4xl font-bold">{formattedTime}</span>
             </div>
-            {isExpanded && (
-              <div className="text-lg text-blue-100 mt-2">
-                {formattedDate}
-              </div>
-            )}
+            <div className="text-lg text-blue-100 mt-2">
+              {formattedDate}
+            </div>
           </div>
         </div>
       </div>
