@@ -237,8 +237,8 @@ export default function EnhancedOrcaMap() {
         </div>
       </div>
       
-      {/* Compact Map */}
-      <div className="h-40 relative">
+      {/* Full-height Map */}
+      <div className="flex-1 relative min-h-0">
         <MapContainer
           bounds={pugetSoundBounds}
           className="h-full w-full z-0"

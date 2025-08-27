@@ -47,11 +47,19 @@ export default function Home() {
           <EventList fullWidth={false} />
         </div>
         
-        <div className="col-span-4 row-span-1 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 shadow-lg">
-          <SkyView />
+        <div className="col-span-4 row-span-1 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 shadow-lg flex flex-col">
+          <div className="px-4 py-2 border-b border-white/20">
+            <h2 className="text-lg font-bold text-white flex items-center">
+              <span className="w-2 h-2 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
+              Ask About Hood Canal
+            </h2>
+          </div>
+          <div className="flex-1 p-4">
+            <HomeChatBot fullWidth={false} />
+          </div>
         </div>
         
-        <div className="col-span-4 row-span-1 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 shadow-lg flex flex-col">
+        <div className="col-span-4 row-span-2 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 shadow-lg flex flex-col">
           <div className="px-4 py-2 border-b border-white/20">
             <h2 className="text-lg font-bold text-white flex items-center">
               <span className="w-2 h-2 bg-cyan-400 rounded-full mr-2 animate-pulse"></span>

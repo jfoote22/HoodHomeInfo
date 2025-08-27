@@ -53,25 +53,17 @@ export default function HomeChatBot({ fullWidth = false }: HomeChatBotProps) {
   // If there's an API error, show a helpful message
   if (apiError || error) {
     return (
-      <div className="bg-white rounded-xl overflow-hidden">
-        <div className="p-4 space-y-4">
-          <div className="flex items-center text-red-600 mb-2">
-            <AlertCircle className="mr-2" />
-            <h3 className="font-semibold">API Connection Error</h3>
+      <div className="h-full flex flex-col">
+        <div className="p-3 space-y-3 flex-1">
+          <div className="flex items-center text-red-400 mb-2">
+            <AlertCircle className="mr-2 w-4 h-4" />
+            <h3 className="font-semibold text-sm text-white">API Not Available</h3>
           </div>
-          <p className="text-gray-700">
-            Unable to connect to the chat API. This feature requires an Anthropic API key to be configured.
+          <p className="text-white/80 text-xs leading-relaxed">
+            The AI chatbot requires an Anthropic API key to function. Please configure your API key to enable this feature.
           </p>
-          <p className="text-gray-700">
-            To enable this feature, you need to:
-          </p>
-          <ol className="list-decimal pl-5 text-gray-700">
-            <li>Get an API key from Anthropic</li>
-            <li>Add it to your .env.local file as ANTHROPIC_API_KEY</li>
-            <li>Restart the server</li>
-          </ol>
-          <p className="text-gray-700 mt-2">
-            For now, you can still explore the other features of the Hood Canal Information Hub.
+          <p className="text-white/60 text-xs">
+            You can still explore all other Hood Canal features.
           </p>
         </div>
       </div>
@@ -79,16 +71,16 @@ export default function HomeChatBot({ fullWidth = false }: HomeChatBotProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl overflow-hidden">
-      <div className={`flex-1 overflow-y-auto p-2 space-y-2 ${fullWidth ? 'max-h-[10vh]' : 'max-h-[20vh]'}`}>
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
         {isLoadingData ? (
-          <div className="text-center py-2 text-gray-500 text-sm">Loading local data...</div>
+          <div className="text-center py-2 text-white/70 text-sm">Loading local data...</div>
         ) : (
           <>
             <div className="flex justify-start">
-              <div className={`${fullWidth ? 'max-w-[95%]' : 'max-w-[90%]'} rounded-lg px-3 py-1.5 bg-blue-100 text-gray-800 rounded-bl-none text-sm`}>
-                <ReactMarkdown className="prose prose-xs">
-                  {`Hi! I can help answer questions about Hood Canal - including weather, tides, events, and more. What would you like to know?`}
+              <div className="max-w-[90%] rounded-lg px-3 py-2 bg-blue-500/80 text-white rounded-bl-none text-sm backdrop-blur-sm">
+                <ReactMarkdown className="prose prose-xs prose-invert">
+                  {`Hi! I can help answer questions about Hood Canal - weather, tides, events, and more. What would you like to know?`}
                 </ReactMarkdown>
               </div>
             </div>
@@ -99,13 +91,13 @@ export default function HomeChatBot({ fullWidth = false }: HomeChatBotProps) {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div 
-                  className={`${fullWidth ? 'max-w-[95%]' : 'max-w-[90%]'} rounded-lg px-3 py-1.5 ${
+                  className={`max-w-[90%] rounded-lg px-3 py-2 ${
                     message.role === 'user' 
-                      ? 'bg-blue-500 text-black rounded-br-none' 
-                      : 'bg-blue-100 text-gray-800 rounded-bl-none'
+                      ? 'bg-green-500/80 text-white rounded-br-none backdrop-blur-sm' 
+                      : 'bg-blue-500/80 text-white rounded-bl-none backdrop-blur-sm'
                   } text-sm`}
                 >
-                  <ReactMarkdown className="prose prose-xs">
+                  <ReactMarkdown className="prose prose-xs prose-invert">
                     {message.content}
                   </ReactMarkdown>
                 </div>
@@ -116,25 +108,25 @@ export default function HomeChatBot({ fullWidth = false }: HomeChatBotProps) {
         <div ref={messagesEndRef} />
       </div>
       
-      <form onSubmit={handleSubmit} className="p-2 border-t flex items-center bg-gray-50">
+      <form onSubmit={handleSubmit} className="p-2 border-t border-white/20 flex items-center">
         <input
           type="text"
           value={input}
           onChange={handleInputChange}
           placeholder="Ask about Hood Canal..."
-          className="flex-1 p-1.5 text-sm border rounded-l-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
+          className="flex-1 p-2 text-sm bg-white/20 border border-white/30 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-white placeholder-white/70 backdrop-blur-sm"
         />
         <button 
           type="submit" 
           disabled={isLoading || !input.trim() || isLoadingData}
-          className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-r-lg disabled:bg-blue-300"
+          className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-r-lg disabled:bg-blue-400 transition-colors backdrop-blur-sm"
         >
           <Send size={16} />
         </button>
         <button 
           type="button" 
           onClick={handleReload}
-          className="ml-1 p-1.5 text-gray-500 hover:text-gray-700 rounded-lg"
+          className="ml-2 p-2 text-white/70 hover:text-white rounded-lg transition-colors"
           title="Reset conversation"
         >
           <RotateCcw size={16} />
