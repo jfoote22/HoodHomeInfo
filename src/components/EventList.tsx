@@ -182,9 +182,9 @@ export default function EventList({ fullWidth = false }: EventListProps) {
   }
   
   return (
-    <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden h-full flex flex-col border border-white/20 hover:bg-white/15 transition-all duration-500">
+    <div className="h-full flex flex-col text-white">
       {/* Compact Header */}
-      <div className="bg-gradient-to-r from-emerald-600/80 via-teal-600/80 to-cyan-600/80 backdrop-blur-sm px-3 py-2 border-b border-white/20">
+      <div className="px-3 py-2 border-b border-white/20">
         <div className="flex items-center justify-between">
           <h2 className="text-white font-bold text-lg flex items-center">
             <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>

@@ -331,23 +331,16 @@ export default function TideChart() {
   }, {});
 
   return (
-    <div className="bg-gradient-to-br from-slate-900/90 via-cyan-900/90 to-blue-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 relative group hover:shadow-cyan-500/25 transition-all duration-700 overflow-hidden">
-      {/* Atmospheric glow effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 via-transparent to-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-3xl"></div>
-      
-      {/* Wave pattern overlay */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='20' viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M21.184 20c.357-.13.72-.264 1.088-.402l1.768-.661C33.64 15.347 39.647 14 50 14c10.271 0 15.362 1.222 24.629 4.928.955.383 1.869.74 2.75 1.072h6.225c-2.51-.73-5.139-1.691-8.233-2.928C65.888 13.278 60.562 12 50 12c-10.626 0-16.855 1.397-26.66 5.063l-1.767.662c-2.475.923-4.66 1.674-6.724 2.275h6.335zm0-20C13.258 2.892 8.077 4 0 4V2c5.744 0 9.951-.574 14.85-2h6.334zM77.38 0C85.239 2.966 90.502 4 100 4V2c-6.842 0-11.386-.542-16.396-2h-6.225zM0 14c8.44 0 13.718-1.21 22.272-4.402l1.768-.661C33.64 5.347 39.647 4 50 4c10.271 0 15.362 1.222 24.629 4.928C82.219 12.69 86.84 14 100 14v2c-10.271 0-15.362-1.222-24.629-4.928C65.888 7.278 60.562 6 50 6c-10.626 0-16.855 1.397-26.66 5.063l-1.767.662C13.223 15.618 8.163 16.9 0 16.9v-2.9z' fill='%23ffffff' fill-opacity='1'/%3E%3C/svg%3E")`,
-          backgroundSize: '100px 20px'
-        }}></div>
+    <div className="h-full text-white">
+      {/* Section Header */}
+      <div className="px-4 py-2 border-b border-white/20">
+        <h2 className="text-lg font-bold text-white flex items-center">
+          <span className="w-2 h-2 bg-cyan-400 rounded-full mr-2 animate-pulse"></span>
+          Tidal Information
+        </h2>
+        <p className="text-xs text-white/70 mt-1">Real-time NOAA predictions</p>
       </div>
-      
-      <div className="relative p-4 z-10">
-        <div className="text-center mb-3">
-          <h2 className="text-lg font-bold text-white mb-1 tracking-wide">Tidal Information</h2>
-          <p className="text-sm text-white/80 font-light">Real-time NOAA predictions</p>
-        </div>
+      <div className="p-4">
         {loading ? (
           <div className="text-center py-8">
             <div className="animate-spin h-8 w-8 mx-auto border-4 border-blue-500 border-t-transparent rounded-full mb-2"></div>
@@ -363,8 +356,8 @@ export default function TideChart() {
             {tideData && (
               <>
                 {/* Compact Chart visualization */}
-                <div className="h-48 relative mb-3">
-                  <div className="relative w-full bg-gradient-to-br from-white/95 to-cyan-50/95 backdrop-blur-sm rounded-2xl border border-white/30 shadow-2xl overflow-hidden">
+                <div className="h-40 relative mb-3">
+                  <div className="relative w-full bg-gradient-to-br from-white/95 to-cyan-50/95 backdrop-blur-sm rounded-xl border border-white/30 shadow-lg overflow-hidden">
                     <svg width={chartWidth} height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-auto">
                       {/* Grid background */}
                       {Array.from({ length: heightRange + 1 }).map((_, index) => {
@@ -632,8 +625,8 @@ export default function TideChart() {
         
         {/* Show watermark for mock data */}
         {isMockData && (
-          <div className="absolute top-4 right-4 z-20 bg-red-500/90 text-white text-xs px-3 py-1 rounded-full font-bold backdrop-blur-sm border border-red-300/50">
-            MOCK DATA
+          <div className="absolute top-2 right-2 z-20 bg-red-500/90 text-white text-xs px-2 py-1 rounded font-bold">
+            MOCK
           </div>
         )}
       </div>

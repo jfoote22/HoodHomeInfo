@@ -170,10 +170,13 @@ export default function SkyView() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-900/90 via-indigo-900/90 to-purple-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 relative group hover:shadow-indigo-500/25 transition-all duration-700 overflow-hidden h-full flex flex-col">
+    <div className="h-full flex flex-col text-white">
       {/* Header */}
-      <div className="p-3 border-b border-white/20">
-        <h2 className="text-lg font-bold text-white">Night Sky</h2>
+      <div className="px-4 py-2 border-b border-white/20">
+        <h2 className="text-lg font-bold text-white flex items-center">
+          <span className="w-2 h-2 bg-indigo-400 rounded-full mr-2 animate-pulse"></span>
+          Night Sky
+        </h2>
       </div>
       
       <div className="p-3 relative flex-1 flex flex-col">
@@ -239,7 +242,7 @@ export default function SkyView() {
         
         {/* Show main watermark if all data is mock */}
         {isMockData && (
-          <div className="absolute top-2 right-2 z-20 bg-red-500/90 text-white text-xs px-2 py-1 rounded-full font-bold backdrop-blur-sm border border-red-300/50">
+          <div className="absolute top-2 right-2 z-20 bg-red-500/90 text-white text-xs px-2 py-1 rounded font-bold">
             MOCK
           </div>
         )}

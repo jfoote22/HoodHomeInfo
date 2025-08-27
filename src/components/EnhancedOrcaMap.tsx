@@ -190,7 +190,7 @@ export default function EnhancedOrcaMap() {
   }
 
   return (
-    <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+    <div className="h-full flex flex-col">
       {/* Compact controls */}
       <div className="p-2 bg-gradient-to-r from-cyan-600/20 via-blue-600/20 to-indigo-600/20 border-b border-white/20">
         <div className="flex items-center justify-between mb-2">
@@ -293,8 +293,8 @@ export default function EnhancedOrcaMap() {
         
         {/* Mock data indicator */}
         {isMockData && (
-          <div className="absolute top-4 right-4 z-10 bg-red-500/90 text-white text-xs px-3 py-1 rounded-full font-bold backdrop-blur-sm border border-red-300/50">
-            SIMULATED DATA
+          <div className="absolute top-2 right-2 z-10 bg-red-500/90 text-white text-xs px-2 py-1 rounded font-bold">
+            SIMULATED
           </div>
         )}
       </div>

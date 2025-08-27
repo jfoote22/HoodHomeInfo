@@ -244,14 +244,17 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
   }
 
   return (
-    <div className="h-full bg-gradient-to-br from-slate-900/90 via-blue-900/90 to-indigo-900/90 backdrop-blur-xl text-white rounded-3xl shadow-2xl overflow-hidden border border-white/20 relative group hover:shadow-blue-500/25 transition-all duration-700">
-      {/* Atmospheric glow effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 via-transparent to-purple-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-3xl"></div>
-      
-      <div className="relative p-4 z-10">
+    <div className="h-full text-white">
+      {/* Section Header */}
+      <div className="px-4 py-2 border-b border-white/20">
+        <h2 className="text-lg font-bold text-white flex items-center">
+          <span className="w-2 h-2 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
+          Current Weather
+        </h2>
+      </div>
+      <div className="p-4">
         {/* Current Weather - Compact Display */}
         <div className="text-center mb-4">
-          <h3 className="text-lg font-medium text-white/90 mb-2">Current Conditions</h3>
           <div className="flex items-center justify-center mb-4">
             <div className="mr-4">
               {getWeatherIcon(weatherData.current.icon, 'w-12 h-12')}
@@ -282,8 +285,8 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
         </div>
         
         {/* Compact 7-day Forecast */}
-        <div className="bg-white/10 backdrop-blur-xl p-3 rounded-2xl border border-white/20">
-          <h4 className="text-base font-semibold text-white mb-3 text-center">7-Day Forecast</h4>
+        <div className="bg-white/10 backdrop-blur-xl p-3 rounded-xl border border-white/20">
+          <h4 className="text-sm font-semibold text-white mb-3 text-center">7-Day Forecast</h4>
           <div className="grid grid-cols-7 gap-1">
             {weatherData.forecast.map((day, index) => (
               <div key={index} className="text-center bg-white/5 rounded-lg p-2 border border-white/10">
@@ -304,8 +307,8 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
         
         {/* Show watermark for mock data */}
         {isMockData && (
-          <div className="absolute top-4 right-4 z-20 bg-red-500/90 text-white text-xs px-3 py-1 rounded-full font-bold backdrop-blur-sm border border-red-300/50">
-            MOCK DATA
+          <div className="absolute top-2 right-2 z-20 bg-red-500/90 text-white text-xs px-2 py-1 rounded font-bold">
+            MOCK
           </div>
         )}
       </div>
