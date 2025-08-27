@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 
 // Custom marker icons
 const createOrcaIcon = (type: string, size: 'small' | 'medium' | 'large' = 'medium') => {
-  const colors = {
+  const colors: { [key: string]: string } = {
     'Resident': '#22c55e', // Green
     'Transient': '#f59e0b', // Amber
     'Offshore': '#3b82f6',  // Blue
