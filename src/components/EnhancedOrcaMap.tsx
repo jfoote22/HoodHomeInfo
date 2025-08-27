@@ -61,10 +61,10 @@ export default function EnhancedOrcaMap() {
   const [timeFilter, setTimeFilter] = useState<string>('7days');
   const [isMockData, setIsMockData] = useState(false);
 
-  // Puget Sound bounds for better map focus
+  // Adjusted Puget Sound bounds for better aspect ratio fit
   const pugetSoundBounds = new LatLngBounds(
-    [46.8, -123.2], // Southwest corner
-    [48.8, -122.0]  // Northeast corner
+    [47.2, -123.0], // Southwest corner - optimized for TV aspect ratio
+    [48.4, -122.3]  // Northeast corner - better fit for container
   );
 
   useEffect(() => {
@@ -190,9 +190,9 @@ export default function EnhancedOrcaMap() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" style={{ height: '100%', minHeight: '400px' }}>
       {/* Compact controls */}
-      <div className="p-2 bg-gradient-to-r from-cyan-600/20 via-blue-600/20 to-indigo-600/20 border-b border-white/20">
+      <div className="p-1 bg-gradient-to-r from-cyan-600/20 via-blue-600/20 to-indigo-600/20 border-b border-white/20 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center space-x-2">
             <select
@@ -238,12 +238,16 @@ export default function EnhancedOrcaMap() {
       </div>
       
       {/* Full-height Map */}
-      <div className="flex-1 relative min-h-0">
+      <div className="flex-1 relative min-h-0" style={{ height: 'calc(100% - 120px)', minHeight: '350px' }}>
         <MapContainer
           bounds={pugetSoundBounds}
           className="h-full w-full z-0"
           zoomControl={true}
           scrollWheelZoom={true}
+          boundsOptions={{ padding: [5, 5] }}
+          style={{ height: '100%', width: '100%', minHeight: '350px' }}
+          maxBounds={pugetSoundBounds}
+          maxBoundsViscosity={0.8}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -300,14 +304,14 @@ export default function EnhancedOrcaMap() {
       </div>
       
       {/* Compact Statistics */}
-      <div className="p-2 bg-gradient-to-r from-slate-900/50 via-cyan-900/50 to-blue-900/50 border-t border-white/20">
-        <div className="grid grid-cols-2 gap-2">
+      <div className="p-1 bg-gradient-to-r from-slate-900/50 via-cyan-900/50 to-blue-900/50 border-t border-white/20 flex-shrink-0">
+        <div className="grid grid-cols-2 gap-1">
           <div className="text-center">
-            <div className="text-lg font-bold text-white">{filteredSightings.length}</div>
+            <div className="text-base font-bold text-white">{filteredSightings.length}</div>
             <div className="text-white/70 text-xs">Sightings</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-bold text-white">
+            <div className="text-base font-bold text-white">
               {filteredSightings.reduce((sum, s) => sum + s.count, 0)}
             </div>
             <div className="text-white/70 text-xs">Individuals</div>

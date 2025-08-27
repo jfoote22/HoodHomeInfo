@@ -71,25 +71,25 @@ export default function AtmosphericBackground({ children }: AtmosphericBackgroun
     let timeTheme = '';
     let weatherOverlay = '';
 
-    // Time-based theming
+    // Time-based theming - Darker variants
     if (timeDecimal >= 5 && timeDecimal < 7) {
-      // Dawn
-      timeTheme = 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)';
+      // Dawn - Darker
+      timeTheme = 'linear-gradient(135deg, #4a1f2e 0%, #2d1b3d 50%, #2d1b3d 100%)';
     } else if (timeDecimal >= 7 && timeDecimal < 10) {
-      // Morning
-      timeTheme = 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)';
+      // Morning - Darker
+      timeTheme = 'linear-gradient(135deg, #1a3b47 0%, #2d2033 100%)';
     } else if (timeDecimal >= 10 && timeDecimal < 17) {
-      // Day
-      timeTheme = 'linear-gradient(135deg, #d299c2 0%, #fef9d7 100%)';
+      // Day - Darker
+      timeTheme = 'linear-gradient(135deg, #3d2a47 0%, #4a3c26 100%)';
     } else if (timeDecimal >= 17 && timeDecimal < 19) {
-      // Golden Hour
-      timeTheme = 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)';
+      // Golden Hour - Darker
+      timeTheme = 'linear-gradient(135deg, #5c3e1a 0%, #4d2d1f 100%)';
     } else if (timeDecimal >= 19 && timeDecimal < 21) {
-      // Sunset
-      timeTheme = 'linear-gradient(135deg, #ff8a80 0%, #ff80ab 50%, #b39ddb 100%)';
+      // Sunset - Darker
+      timeTheme = 'linear-gradient(135deg, #4d1f1a 0%, #3d1a2b 50%, #2a1f3d 100%)';
     } else {
-      // Night
-      timeTheme = 'linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e3c72 100%)';
+      // Night - Even darker
+      timeTheme = 'linear-gradient(135deg, #0f1419 0%, #1a2332 50%, #0f1419 100%)';
     }
 
     // Weather-based overlay

@@ -166,6 +166,17 @@ body {
 /* Leaflet map customizations for dark theme */
 .leaflet-container {
   background: #1e293b !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.leaflet-map-pane {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.leaflet-control-container {
+  position: relative !important;
 }
 
 .leaflet-popup-content-wrapper {

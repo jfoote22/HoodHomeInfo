@@ -59,14 +59,14 @@ export default function Home() {
           </div>
         </div>
         
-        <div className="col-span-4 row-span-2 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 shadow-lg flex flex-col">
-          <div className="px-4 py-2 border-b border-white/20">
+        <div className="col-span-4 row-span-2 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 shadow-lg flex flex-col h-full">
+          <div className="px-4 py-1 border-b border-white/20 flex-shrink-0">
             <h2 className="text-lg font-bold text-white flex items-center">
               <span className="w-2 h-2 bg-cyan-400 rounded-full mr-2 animate-pulse"></span>
               Orca Sightings
             </h2>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0" style={{ height: 'calc(100% - 50px)' }}>
             <OrcaMap />
           </div>
         </div>
