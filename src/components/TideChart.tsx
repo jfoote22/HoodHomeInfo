@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import CollapsibleContainer from './CollapsibleContainer';
 
+// Mock data watermark component
+const MockDataWatermark = () => (
+  <div className="absolute bottom-0 right-0 z-50 bg-red-600 text-white text-xs px-2 py-1 rounded-tl-md font-bold opacity-80">
+    MOCK DATA
+  </div>
+);
+
 interface TideInfo {
   type: 'High' | 'Low';
   time: string;
@@ -23,6 +30,7 @@ export default function TideChart() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isTableVisible, setIsTableVisible] = useState(false);
+  const [isMockData, setIsMockData] = useState(false);
   
   // Always start with the current day, not a selected day
   const currentDate = new Date();
@@ -51,6 +59,7 @@ export default function TideChart() {
     async function fetchTideData() {
       setLoading(true);
       setError(null);
+      setIsMockData(false);
       
       try {
         // Get start and end dates for THREE days starting from today
@@ -107,6 +116,7 @@ export default function TideChart() {
         
         // Fallback to simulated data
         fallbackToSimulatedData();
+        setIsMockData(true); // Mark data as mock when fallback is used
       } finally {
         setLoading(false);
       }
@@ -273,10 +283,10 @@ export default function TideChart() {
   // Get data for the smooth curve
   const curvePoints = generateDetailedTideCurve(tideData.tides);
   
-  // Chart dimensions - make it more responsive
-  const chartWidth = 1200; // Increased from 1000 to 1200
-  const chartHeight = 400;
-  const padding = { top: 40, right: 20, bottom: 80, left: 50 }; // Reduced side padding
+  // Chart dimensions - compact for TV
+  const chartWidth = 800;
+  const chartHeight = 200;
+  const padding = { top: 20, right: 15, bottom: 40, left: 35 };
   const innerWidth = chartWidth - padding.left - padding.right;
   const innerHeight = chartHeight - padding.top - padding.bottom;
   
@@ -321,295 +331,311 @@ export default function TideChart() {
   }, {});
 
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden">
-      <div className="p-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
-        <h2 className="text-xl font-semibold">Tide Information - {tideData.stationName}</h2>
-        <p className="text-sm text-white/80 mt-1">
-          Showing tides for: {daysToShow[0].toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} - {daysToShow[2].toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-        </p>
+    <div className="bg-gradient-to-br from-slate-900/90 via-cyan-900/90 to-blue-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 relative group hover:shadow-cyan-500/25 transition-all duration-700 overflow-hidden">
+      {/* Atmospheric glow effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 via-transparent to-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-3xl"></div>
+      
+      {/* Wave pattern overlay */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='20' viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M21.184 20c.357-.13.72-.264 1.088-.402l1.768-.661C33.64 15.347 39.647 14 50 14c10.271 0 15.362 1.222 24.629 4.928.955.383 1.869.74 2.75 1.072h6.225c-2.51-.73-5.139-1.691-8.233-2.928C65.888 13.278 60.562 12 50 12c-10.626 0-16.855 1.397-26.66 5.063l-1.767.662c-2.475.923-4.66 1.674-6.724 2.275h6.335zm0-20C13.258 2.892 8.077 4 0 4V2c5.744 0 9.951-.574 14.85-2h6.334zM77.38 0C85.239 2.966 90.502 4 100 4V2c-6.842 0-11.386-.542-16.396-2h-6.225zM0 14c8.44 0 13.718-1.21 22.272-4.402l1.768-.661C33.64 5.347 39.647 4 50 4c10.271 0 15.362 1.222 24.629 4.928C82.219 12.69 86.84 14 100 14v2c-10.271 0-15.362-1.222-24.629-4.928C65.888 7.278 60.562 6 50 6c-10.626 0-16.855 1.397-26.66 5.063l-1.767.662C13.223 15.618 8.163 16.9 0 16.9v-2.9z' fill='%23ffffff' fill-opacity='1'/%3E%3C/svg%3E")`,
+          backgroundSize: '100px 20px'
+        }}></div>
       </div>
       
-      <div className="p-2 sm:p-4"> {/* Reduced padding on small screens */}
-        {/* Enhanced Tide Chart (Three days with more detail) */}
-        <div className="mb-4 sm:mb-6 overflow-x-auto">
-          <div className="relative w-full border border-gray-300 bg-white">
-            <svg width={chartWidth} height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-auto">
-              {/* Grid background */}
-              {Array.from({ length: heightRange + 1 }).map((_, index) => {
-                const y = padding.top + (innerHeight / heightRange) * index;
-                return (
-                  <line
-                    key={`grid-h-${index}`}
-                    x1={padding.left}
-                    y1={y}
-                    x2={chartWidth - padding.right}
-                    y2={y}
-                    stroke="#e5e7eb"
-                    strokeWidth="1"
-                  />
-                );
-              })}
-              
-              {/* Vertical grid lines for days */}
-              {dayTicks.map((time, index) => {
-                const dayProgress = (time.getTime() - threeDaysStart.getTime()) / timeRange;
-                const x = padding.left + innerWidth * dayProgress;
-                const isMidnight = time.getHours() === 0;
-                return (
-                  <line
-                    key={`grid-v-${index}`}
-                    x1={x}
-                    y1={padding.top}
-                    x2={x}
-                    y2={chartHeight - padding.bottom}
-                    stroke={isMidnight ? "#9ca3af" : "#e5e7eb"}
-                    strokeWidth={isMidnight ? "1.5" : "1"}
-                    strokeDasharray={isMidnight ? "" : "5,5"}
-                  />
-                );
-              })}
-              
-              {/* Y-axis labels (tide heights) */}
-              {Array.from({ length: heightRange + 1 }).map((_, index) => {
-                const y = padding.top + (innerHeight / heightRange) * index;
-                const height = maxHeight - index;
-                return (
-                  <text
-                    key={`y-label-${index}`}
-                    x={padding.left - 15}
-                    y={y}
-                    textAnchor="end"
-                    dominantBaseline="middle"
-                    fontSize="12"
-                    fill="#6b7280"
-                  >
-                    {height.toFixed(1)}
-                  </text>
-                );
-              })}
-              
-              {/* X-axis labels - days and major hours */}
-              {dayTicks.map((time, index) => {
-                const dayProgress = (time.getTime() - threeDaysStart.getTime()) / timeRange;
-                const x = padding.left + innerWidth * dayProgress;
-                const isMidnight = time.getHours() === 0;
-                
-                return (
-                  <g key={`x-label-${index}`}>
-                    <text
-                      x={x}
-                      y={chartHeight - padding.bottom + 20}
-                      textAnchor="middle"
-                      fontSize="12"
-                      fill="#6b7280"
-                    >
-                      {isMidnight 
-                        ? time.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) 
-                        : time.getHours() === 12 ? 'Noon' : time.getHours() === 6 ? '6 AM' : time.getHours() === 18 ? '6 PM' : ''}
-                    </text>
-                  </g>
-                );
-              })}
-              
-              {/* Day separation lines */}
-              {[1, 2].map((day) => {
-                const date = new Date(daysToShow[day]);
-                date.setHours(0, 0, 0, 0);
-                const x = padding.left + ((date.getTime() - threeDaysStart.getTime()) / timeRange) * innerWidth;
-                
-                return (
-                  <line
-                    key={`day-sep-${day}`}
-                    x1={x}
-                    y1={padding.top}
-                    x2={x}
-                    y2={chartHeight - padding.bottom}
-                    stroke="#9ca3af"
-                    strokeWidth="1.5"
-                  />
-                );
-              })}
-              
-              {/* Tide curve */}
-              <path
-                d={pathData}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="3"
-                strokeLinejoin="round"
-              />
-              
-              {/* Tide points with detailed labels */}
-              {tideData.tides.map((tide, index) => {
-                const x = padding.left + ((tide.timestamp - threeDaysStart.getTime()) / timeRange) * innerWidth;
-                const y = padding.top + innerHeight - ((parseFloat(tide.height) - minHeight) / heightRange) * innerHeight;
-                
-                return (
-                  <g key={`tide-point-${index}`}>
-                    {/* Point */}
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r="6"
-                      fill={tide.type === 'High' ? '#1e40af' : '#3b82f6'}
-                      stroke="white"
-                      strokeWidth="2"
-                    />
-                    
-                    {/* Only show labels for every other point to avoid crowding */}
-                    {index % 2 === 0 && (
-                      <>
-                        {/* Background for better readability */}
-                        <rect 
-                          x={x - 30} 
-                          y={tide.type === 'High' ? y - 48 : y + 10} 
-                          width="60" 
-                          height="38" 
-                          rx="4" 
-                          fill="white" 
-                          fillOpacity="0.9"
-                          stroke={tide.type === 'High' ? '#1e40af' : '#3b82f6'}
-                          strokeWidth="1"
-                        />
-                        
-                        {/* Height label */}
-                        <text
-                          x={x}
-                          y={tide.type === 'High' ? y - 30 : y + 28}
-                          textAnchor="middle"
-                          fontSize="12"
-                          fontWeight="bold"
-                          fill="#1e3a8a"
-                        >
-                          {tide.height}
-                        </text>
-                        
-                        {/* Time label */}
-                        <text
-                          x={x}
-                          y={tide.type === 'High' ? y - 15 : y + 43}
-                          textAnchor="middle"
-                          fontSize="12"
-                          fill="#4b5563"
-                        >
-                          {tide.time}
-                        </text>
-                      </>
-                    )}
-                  </g>
-                );
-              })}
-              
-              {/* Today indicator */}
-              <text 
-                x={padding.left + innerWidth / 6}
-                y={padding.top - 15}
-                textAnchor="middle"
-                fontSize="12"
-                fontWeight="bold"
-                fill="#3b82f6"
-              >
-                Today
-              </text>
-              
-              {/* Tomorrow indicator */}
-              <text 
-                x={padding.left + innerWidth / 2}
-                y={padding.top - 15}
-                textAnchor="middle"
-                fontSize="12"
-                fontWeight="bold"
-                fill="#3b82f6"
-              >
-                Tomorrow
-              </text>
-              
-              {/* Day after tomorrow indicator */}
-              <text 
-                x={padding.left + (innerWidth * 5 / 6)}
-                y={padding.top - 15}
-                textAnchor="middle"
-                fontSize="12"
-                fontWeight="bold"
-                fill="#3b82f6"
-              >
-                {daysToShow[2].toLocaleDateString(undefined, { weekday: 'short' })}
-              </text>
-            </svg>
-          </div>
-          
-          {/* NOAA attribution */}
-          <div className="text-right text-xs text-gray-500 mt-1">
-            Data source: NOAA/NOS/CO-OPS
-          </div>
+      <div className="relative p-4 z-10">
+        <div className="text-center mb-3">
+          <h2 className="text-lg font-bold text-white mb-1 tracking-wide">Tidal Information</h2>
+          <p className="text-sm text-white/80 font-light">Real-time NOAA predictions</p>
         </div>
-        
-        {/* Collapsible tide table section */}
-        <div className="mb-4 border-t border-gray-200 pt-2">
-          <button 
-            onClick={() => setIsTableVisible(!isTableVisible)}
-            className="w-full flex justify-between items-center px-4 py-2 text-sm font-medium text-indigo-700 hover:text-indigo-900 transition-colors"
-          >
-            <span>Detailed Tide Information</span>
-            {isTableVisible ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-          </button>
-          
-          {isTableVisible && (
-            <div className="overflow-x-auto mt-2">
-              {Object.entries(tidesByDate).map(([date, tides]) => (
-                <div key={date} className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2 px-4">
-                    {new Date(tides[0].timestamp).toLocaleDateString(undefined, {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </h3>
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Type
-                        </th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Time
-                        </th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Height
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {tides.map((tide, index) => (
-                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-2 text-sm font-medium">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              tide.type === 'High' ? 'bg-blue-100 text-blue-800' : 'bg-cyan-100 text-cyan-800'
-                            }`}>
-                              {tide.type} Tide
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900 font-semibold">
-                            {tide.time}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
-                            {tide.height}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin h-8 w-8 mx-auto border-4 border-blue-500 border-t-transparent rounded-full mb-2"></div>
+            <p className="text-gray-600">Loading tide data...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center text-red-500 py-8">
+            <p>{error}</p>
+          </div>
+        ) : (
+          <>
+            {/* Tide chart visualization */}
+            {tideData && (
+              <>
+                {/* Compact Chart visualization */}
+                <div className="h-48 relative mb-3">
+                  <div className="relative w-full bg-gradient-to-br from-white/95 to-cyan-50/95 backdrop-blur-sm rounded-2xl border border-white/30 shadow-2xl overflow-hidden">
+                    <svg width={chartWidth} height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-auto">
+                      {/* Grid background */}
+                      {Array.from({ length: heightRange + 1 }).map((_, index) => {
+                        const y = padding.top + (innerHeight / heightRange) * index;
+                        return (
+                          <line
+                            key={`grid-h-${index}`}
+                            x1={padding.left}
+                            y1={y}
+                            x2={chartWidth - padding.right}
+                            y2={y}
+                            stroke="#e5e7eb"
+                            strokeWidth="1"
+                          />
+                        );
+                      })}
+                      
+                      {/* Vertical grid lines for days */}
+                      {dayTicks.map((time, index) => {
+                        const dayProgress = (time.getTime() - threeDaysStart.getTime()) / timeRange;
+                        const x = padding.left + innerWidth * dayProgress;
+                        const isMidnight = time.getHours() === 0;
+                        return (
+                          <line
+                            key={`grid-v-${index}`}
+                            x1={x}
+                            y1={padding.top}
+                            x2={x}
+                            y2={chartHeight - padding.bottom}
+                            stroke={isMidnight ? "#9ca3af" : "#e5e7eb"}
+                            strokeWidth={isMidnight ? "1.5" : "1"}
+                            strokeDasharray={isMidnight ? "" : "5,5"}
+                          />
+                        );
+                      })}
+                      
+                      {/* Y-axis labels (tide heights) */}
+                      {Array.from({ length: heightRange + 1 }).map((_, index) => {
+                        const y = padding.top + (innerHeight / heightRange) * index;
+                        const height = maxHeight - index;
+                        return (
+                          <text
+                            key={`y-label-${index}`}
+                            x={padding.left - 15}
+                            y={y}
+                            textAnchor="end"
+                            dominantBaseline="middle"
+                            fontSize="12"
+                            fill="#6b7280"
+                          >
+                            {height.toFixed(1)}
+                          </text>
+                        );
+                      })}
+                      
+                      {/* X-axis labels - days and major hours */}
+                      {dayTicks.map((time, index) => {
+                        const dayProgress = (time.getTime() - threeDaysStart.getTime()) / timeRange;
+                        const x = padding.left + innerWidth * dayProgress;
+                        const isMidnight = time.getHours() === 0;
+                        
+                        return (
+                          <g key={`x-label-${index}`}>
+                            <text
+                              x={x}
+                              y={chartHeight - padding.bottom + 20}
+                              textAnchor="middle"
+                              fontSize="12"
+                              fill="#6b7280"
+                            >
+                              {isMidnight 
+                                ? time.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) 
+                                : time.getHours() === 12 ? 'Noon' : time.getHours() === 6 ? '6 AM' : time.getHours() === 18 ? '6 PM' : ''}
+                            </text>
+                          </g>
+                        );
+                      })}
+                      
+                      {/* Day separation lines */}
+                      {[1, 2].map((day) => {
+                        const date = new Date(daysToShow[day]);
+                        date.setHours(0, 0, 0, 0);
+                        const x = padding.left + ((date.getTime() - threeDaysStart.getTime()) / timeRange) * innerWidth;
+                        
+                        return (
+                          <line
+                            key={`day-sep-${day}`}
+                            x1={x}
+                            y1={padding.top}
+                            x2={x}
+                            y2={chartHeight - padding.bottom}
+                            stroke="#9ca3af"
+                            strokeWidth="1.5"
+                          />
+                        );
+                      })}
+
+                      {/* Current time vertical line */}
+                      {(() => {
+                        const now = new Date();
+                        const nowTime = now.getTime();
+                        if (nowTime >= threeDaysStart.getTime() && nowTime <= threeDaysEnd.getTime()) {
+                          const x = padding.left + ((nowTime - threeDaysStart.getTime()) / timeRange) * innerWidth;
+                          return (
+                            <line
+                              x1={x}
+                              y1={padding.top}
+                              x2={x}
+                              y2={chartHeight - padding.bottom}
+                              stroke="#e11d48" // rose-600
+                              strokeWidth="2.5"
+                              strokeDasharray="4,2"
+                              opacity="0.85"
+                            />
+                          );
+                        }
+                        return null;
+                      })()}
+                      
+                      {/* Enhanced Tide curve with gradient */}
+                      <defs>
+                        <linearGradient id="tideGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#0891b2" stopOpacity="0.8"/>
+                          <stop offset="50%" stopColor="#3b82f6" stopOpacity="1"/>
+                          <stop offset="100%" stopColor="#6366f1" stopOpacity="0.8"/>
+                        </linearGradient>
+                        <filter id="glow">
+                          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                          <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                          </feMerge>
+                        </filter>
+                      </defs>
+                      <path
+                        d={pathData}
+                        fill="none"
+                        stroke="url(#tideGradient)"
+                        strokeWidth="4"
+                        strokeLinejoin="round"
+                        filter="url(#glow)"
+                        className="drop-shadow-lg"
+                      />
+                      
+                      {/* Tide points with detailed labels */}
+                      {tideData.tides.map((tide, index) => {
+                        const x = padding.left + ((tide.timestamp - threeDaysStart.getTime()) / timeRange) * innerWidth;
+                        const y = padding.top + innerHeight - ((parseFloat(tide.height) - minHeight) / heightRange) * innerHeight;
+                        
+                        return (
+                          <g key={`tide-point-${index}`}>
+                            {/* Enhanced Point with glow effect */}
+                            <circle
+                              cx={x}
+                              cy={y}
+                              r="8"
+                              fill={tide.type === 'High' ? '#0891b2' : '#3b82f6'}
+                              stroke="white"
+                              strokeWidth="3"
+                              className="drop-shadow-lg"
+                              style={{ filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.6))' }}
+                            />
+                            <circle
+                              cx={x}
+                              cy={y}
+                              r="4"
+                              fill="white"
+                              opacity="0.8"
+                            />
+                            {/* Always show labels for all points */}
+                            {/* Enhanced background with gradient */}
+                            <rect 
+                              x={x - 35} 
+                              y={tide.type === 'High' ? y - 52 : y + 12} 
+                              width="70" 
+                              height="42" 
+                              rx="8" 
+                              fill="rgba(255, 255, 255, 0.95)" 
+                              stroke={tide.type === 'High' ? '#0891b2' : '#3b82f6'}
+                              strokeWidth="2"
+                              className="drop-shadow-lg"
+                              style={{ filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15))' }}
+                            />
+                            {/* Height label */}
+                            <text
+                              x={x}
+                              y={tide.type === 'High' ? y - 30 : y + 28}
+                              textAnchor="middle"
+                              fontSize="12"
+                              fontWeight="bold"
+                              fill="#1e3a8a"
+                            >
+                              {tide.height}
+                            </text>
+                            {/* Time label */}
+                            <text
+                              x={x}
+                              y={tide.type === 'High' ? y - 15 : y + 43}
+                              textAnchor="middle"
+                              fontSize="12"
+                              fill="#4b5563"
+                            >
+                              {tide.time}
+                            </text>
+                          </g>
+                        );
+                      })}
+                      
+                      {/* Today indicator */}
+                      <text 
+                        x={padding.left + innerWidth / 6}
+                        y={padding.top - 15}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fontWeight="bold"
+                        fill="#3b82f6"
+                      >
+                        Today
+                      </text>
+                      
+                      {/* Tomorrow indicator */}
+                      <text 
+                        x={padding.left + innerWidth / 2}
+                        y={padding.top - 15}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fontWeight="bold"
+                        fill="#3b82f6"
+                      >
+                        Tomorrow
+                      </text>
+                      
+                      {/* Day after tomorrow indicator */}
+                      <text 
+                        x={padding.left + (innerWidth * 5 / 6)}
+                        y={padding.top - 15}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fontWeight="bold"
+                        fill="#3b82f6"
+                      >
+                        {daysToShow[2].toLocaleDateString(undefined, { weekday: 'short' })}
+                      </text>
+                    </svg>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                
+                
+                {/* Compact tide summary */}
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  {tideData.tides.slice(0, 4).map((tide, index) => (
+                    <div key={index} className="bg-white/10 rounded-lg p-2 border border-white/20">
+                      <div className={`text-xs font-medium ${tide.type === 'High' ? 'text-blue-300' : 'text-amber-300'}`}>
+                        {tide.type}
+                      </div>
+                      <div className="text-sm font-bold text-white mt-1">{tide.time}</div>
+                      <div className="text-xs text-white/70">{tide.height}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
         
-        {/* Disclaimer text */}
-        <div className="mt-2 text-xs text-gray-500 italic px-4">
-          <p>Disclaimer: These predictions are based upon the latest information available from NOAA. The data has not been subjected to the National Ocean Service&apos;s quality control procedures.</p>
-        </div>
+        {/* Show watermark for mock data */}
+        {isMockData && (
+          <div className="absolute top-4 right-4 z-20 bg-red-500/90 text-white text-xs px-3 py-1 rounded-full font-bold backdrop-blur-sm border border-red-300/50">
+            MOCK DATA
+          </div>
+        )}
       </div>
     </div>
   );

@@ -170,13 +170,14 @@ export default function SkyView() {
   }
 
   return (
-    <CollapsibleContainer 
-      title="Celestial Information"
-      gradient="bg-gradient-to-r from-indigo-600 to-purple-600"
-    >
-      <div className="p-4 relative">
-        <h3 className="font-medium text-gray-700 mb-2">NASA Astronomy Picture of the Day</h3>
-        <div className="relative w-full h-64 rounded-lg overflow-hidden mb-3">
+    <div className="bg-gradient-to-br from-slate-900/90 via-indigo-900/90 to-purple-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 relative group hover:shadow-indigo-500/25 transition-all duration-700 overflow-hidden h-full flex flex-col">
+      {/* Header */}
+      <div className="p-3 border-b border-white/20">
+        <h2 className="text-lg font-bold text-white">Night Sky</h2>
+      </div>
+      
+      <div className="p-3 relative flex-1 flex flex-col">
+        <div className="relative w-full h-32 rounded-lg overflow-hidden mb-2">
           {skyData?.apod.media_type === 'image' ? (
             <Image 
               src={skyData.apod.url}
@@ -197,89 +198,52 @@ export default function SkyView() {
             </div>
           )}
         </div>
-        <h4 className="font-semibold text-gray-800 mb-1">{skyData?.apod.title}</h4>
-        <div className="flex justify-between items-center mb-2">
-          <p className="text-xs text-gray-500">{skyData?.apod.date}</p>
-          {skyData?.apod.copyright && (
-            <p className="text-xs text-gray-500">© {skyData.apod.copyright}</p>
-          )}
-        </div>
-        <div className="relative">
-          <p className="text-sm text-gray-600">
-            {showFullExplanation 
-              ? skyData?.apod.explanation 
-              : `${skyData?.apod.explanation.substring(0, 120)}...`}
+        <h4 className="font-semibold text-white mb-1 text-sm">{skyData?.apod.title}</h4>
+        <p className="text-xs text-white/70 mb-2">{skyData?.apod.date}</p>
+        <div className="relative flex-1">
+          <p className="text-xs text-white/80 line-clamp-3">
+            {skyData?.apod.explanation.substring(0, 150)}...
           </p>
-          <button 
-            onClick={() => setShowFullExplanation(!showFullExplanation)}
-            className="text-sm text-indigo-600 flex items-center mt-1 hover:text-indigo-800"
-          >
-            {showFullExplanation ? (
-              <>
-                Show Less <ChevronUp className="w-4 h-4 ml-1" />
-              </>
-            ) : (
-              <>
-                Read More <ChevronDown className="w-4 h-4 ml-1" />
-              </>
-            )}
-          </button>
         </div>
         
-        {/* Planet visibility section - collapsible */}
-        <div className="mt-6 border-t border-gray-200 pt-4">
-          <button 
-            onClick={() => setShowPlanetSection(!showPlanetSection)}
-            className="flex items-center justify-between w-full text-left"
-          >
-            <div className="flex items-center">
-              <h3 className="font-medium text-gray-700">Planet Visibility Tonight</h3>
-              <div className="ml-2 text-xs bg-red-600 text-white px-1.5 py-0.5 rounded font-medium">
-                MOCK DATA
-              </div>
-            </div>
-            {showPlanetSection ? 
-              <ChevronUp className="w-5 h-5 text-gray-500" /> : 
-              <ChevronDown className="w-5 h-5 text-gray-500" />
-            }
-          </button>
+        {/* Compact Planet visibility */}
+        <div className="mt-3 border-t border-white/20 pt-3">
+          <h3 className="font-medium text-white text-sm mb-2 flex items-center">
+            <Star className="w-3 h-3 mr-1" />
+            Visible Planets
+          </h3>
           
-          {showPlanetSection && (
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              {skyData?.planets.map((planet) => (
-                <div 
-                  key={planet.name}
-                  className="bg-gray-50 p-3 rounded-lg border border-gray-200"
-                >
-                  <div className="flex items-center mb-2">
-                    <Star 
-                      className={`w-4 h-4 mr-2 ${
-                        planet.visibility === 'Visible' ? 'text-yellow-500' : 'text-gray-400'
-                      }`} 
-                    />
-                    <h4 className="font-medium">{planet.name}</h4>
-                  </div>
-                  <p className={`text-sm ${
-                    planet.visibility === 'Visible' ? 'text-green-600' : 'text-red-500'
-                  }`}>
-                    {planet.visibility}
-                  </p>
-                  {planet.visibility === 'Visible' && (
-                    <div className="mt-1 text-xs text-gray-600">
-                      <p>Direction: {planet.direction}</p>
-                      <p>Rises: {planet.rises}</p>
-                      <p>Sets: {planet.sets}</p>
-                    </div>
-                  )}
+          <div className="grid grid-cols-3 gap-1">
+            {skyData?.planets.slice(0, 3).map((planet) => (
+              <div 
+                key={planet.name}
+                className="bg-white/10 p-1 rounded-md border border-white/20 text-center"
+              >
+                <div className="flex items-center justify-center mb-1">
+                  <Star 
+                    className={`w-3 h-3 ${
+                      planet.visibility === 'Visible' ? 'text-yellow-400' : 'text-gray-400'
+                    }`} 
+                  />
                 </div>
-              ))}
-            </div>
-          )}
+                <h4 className="text-xs font-medium text-white">{planet.name}</h4>
+                <p className={`text-xs ${
+                  planet.visibility === 'Visible' ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  {planet.visibility === 'Visible' ? 'Visible' : 'Hidden'}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
         
         {/* Show main watermark if all data is mock */}
-        {isMockData && <MockDataWatermark />}
+        {isMockData && (
+          <div className="absolute top-2 right-2 z-20 bg-red-500/90 text-white text-xs px-2 py-1 rounded-full font-bold backdrop-blur-sm border border-red-300/50">
+            MOCK
+          </div>
+        )}
       </div>
-    </CollapsibleContainer>
+    </div>
   );
 } 

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-// import dynamic from 'next/dynamic';
+import dynamic from 'next/dynamic';
+import PersistentStatusBar from '../components/PersistentStatusBar';
+import AtmosphericBackground from '../components/AtmosphericBackground';
 import Hero from '../components/Hero';
 import WeatherCard from '../components/WeatherCard';
 import TideChart from '../components/TideChart';
@@ -11,8 +13,8 @@ import HomeChatBot from '../components/HomeChatBot';
 import LunarPhase from '../components/LunarPhase';
 import LayoutToggle from '../components/LayoutToggle';
 
-// Import OrcaMap with SSR disabled - temporarily disabled for deployment
-// const OrcaMap = dynamic(() => import('../components/OrcaMap'), { ssr: false });
+// Import OrcaMap with SSR disabled
+const OrcaMap = dynamic(() => import('../components/EnhancedOrcaMap'), { ssr: false });
 
 export default function Home() {
   const [isFullWidth, setIsFullWidth] = useState(false);
@@ -22,78 +24,73 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-100 overflow-x-hidden">
-      {/* Hero and Weather Section - horizontally aligned */}
-      <div className="flex flex-col lg:flex-row gap-6 mx-2 mb-8 pt-4">
-        <div className="w-full lg:w-1/2">
-          <Hero />
-        </div>
-        <div className="w-full lg:w-1/2">
-          <WeatherCard />
-        </div>
-      </div>
-      
-      {/* Information and Events Section */}
-      <div className="max-w-[98%] mx-auto px-2 mb-6 relative">
-        <div className={`transition-all duration-500 ease-in-out ${isFullWidth ? 'opacity-100 visible' : 'opacity-0 invisible h-0 overflow-hidden'}`}>
-          {/* Full-width layout - Info section on top, Events below */}
-          <div className="flex flex-col gap-4">
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-md p-4 max-h-[17vh] overflow-y-auto">
-              <h2 className="text-xl font-semibold text-indigo-900 mb-2">Need More Information?</h2>
-              <HomeChatBot fullWidth={true} />
-            </div>
-            
-            <div className="w-full overflow-hidden h-[17vh]">
-              <EventList fullWidth={true} />
-            </div>
+    <AtmosphericBackground>
+      <PersistentStatusBar />
+      <main className="h-screen overflow-hidden pt-12 flex flex-col">
+      {/* Top Section - Current Conditions & Essential Info */}
+      <section className="flex-none px-2 pb-2">
+        <div className="grid grid-cols-12 gap-3 h-64">
+          {/* Left: Current Weather */}
+          <div className="col-span-4">
+            <WeatherCard />
+          </div>
+          
+          {/* Center: Tide Chart */}
+          <div className="col-span-5">
+            <TideChart />
+          </div>
+          
+          {/* Right: Lunar & Time Info */}
+          <div className="col-span-3">
+            <LunarPhase />
           </div>
         </div>
-        
-        <div className={`transition-all duration-500 ease-in-out ${!isFullWidth ? 'opacity-100 visible' : 'opacity-0 invisible h-0 overflow-hidden'}`}>
-          {/* Side-by-side layout (original) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-md p-4 max-h-[25vh] overflow-y-auto">
-              <h2 className="text-xl font-semibold text-indigo-900 mb-2">Need More Information?</h2>
-              <HomeChatBot fullWidth={false} />
-            </div>
-            
-            <div className="w-full overflow-hidden h-[25vh]">
+      </section>
+      
+      {/* Bottom Section - Events, Sky, and Orca Info */}
+      <section className="flex-1 px-2 min-h-0">
+        <div className="grid grid-cols-12 gap-3 h-full">
+          {/* Left: Events Calendar */}
+          <div className="col-span-4">
+            <div className="h-full">
               <EventList fullWidth={false} />
             </div>
           </div>
-        </div>
-      </div>
-      
-      {/* Full-width Tide Chart */}
-      <div className="w-full mb-6">
-        <TideChart />
-      </div>
-      
-      {/* Lunar and Sky Section */}
-      <div className="max-w-[98%] mx-auto px-2 pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <LunarPhase />
+          
+          {/* Center: Sky View */}
+          <div className="col-span-4">
+            <div className="h-full">
+              <SkyView />
+            </div>
           </div>
-          <div>
-            <SkyView />
+          
+          {/* Right: Orca Map */}
+          <div className="col-span-4">
+            <div className="h-full">
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 h-full flex flex-col">
+                <div className="p-3 border-b border-white/20">
+                  <h3 className="text-lg font-semibold text-white flex items-center">
+                    <span className="w-2 h-2 bg-cyan-400 rounded-full mr-2 animate-pulse"></span>
+                    Orca Sightings
+                  </h3>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <OrcaMap />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
+      
+      
 
-      {/* Orca Whale Watching Map - temporarily removed for deployment */}
-      {/*
-      <div className="max-w-[98%] mx-auto px-2 pb-16">
-        <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-6 mb-4">
-          <h2 className="text-2xl font-semibold text-indigo-900 mb-4">Orca Whale Sightings Map</h2>
-          <p className="text-gray-600 mb-4">Track recent orca sightings in the Hood Canal area. Red markers show real-time sightings, orange for recent sightings, and blue for historical data.</p>
-          <OrcaMap />
-        </div>
-      </div>
-      */}
 
-      {/* Layout Toggle Button */}
-      <LayoutToggle onToggle={handleLayoutToggle} />
+      {/* Layout Control - Bottom Corner */}
+      <div className="absolute bottom-4 right-4 z-40">
+        <LayoutToggle onToggle={handleLayoutToggle} />
+      </div>
     </main>
+    </AtmosphericBackground>
   );
 }

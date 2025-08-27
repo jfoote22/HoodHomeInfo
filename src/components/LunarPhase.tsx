@@ -3,6 +3,13 @@
 import { useState, useEffect } from 'react';
 import CollapsibleContainer from './CollapsibleContainer';
 
+// Calculated data badge component
+const CalculatedDataBadge = () => (
+  <div className="absolute bottom-0 right-0 z-50 bg-blue-600 text-white text-xs px-2 py-1 rounded-tl-md font-bold opacity-80">
+    CALCULATED DATA
+  </div>
+);
+
 interface LunarPhaseInfo {
   phase: string;
   illumination: number;
@@ -102,22 +109,29 @@ export default function LunarPhase() {
   }
   
   return (
-    <CollapsibleContainer 
-      title="Lunar Cycle Information"
-      gradient="bg-gradient-to-r from-indigo-500 to-purple-500"
-    >
-      <div className="p-4">
-        {/* Moon phase title and age */}
-        <div className="text-center mb-4">
-          <h3 className="text-2xl font-bold text-gray-800 mb-1">{lunarData.phase}</h3>
-          <p className="text-base text-gray-600">Current Moon Age: {lunarData.age} days</p>
+    <div className="bg-gradient-to-br from-slate-900/90 via-purple-900/90 to-indigo-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 relative group hover:shadow-purple-500/25 transition-all duration-700 overflow-hidden h-full flex flex-col">
+      {/* Header */}
+      <div className="p-3 border-b border-white/20">
+        <h2 className="text-lg font-bold text-white">Lunar Phase</h2>
+      </div>
+      
+      <div className="p-3 relative flex-1 flex flex-col">
+        {/* Compact Moon phase title and age */}
+        <div className="text-center mb-3">
+          <div className="flex items-center justify-center mb-1">
+            <h3 className="text-lg font-bold text-white">{lunarData.phase}</h3>
+            <div className="ml-1 text-xs bg-blue-600 text-white px-1 py-0.5 rounded font-medium">
+              CALC
+            </div>
+          </div>
+          <p className="text-sm text-white/80">Age: {lunarData.age} days</p>
         </div>
         
-        {/* Enhanced realistic moon visualization */}
-        <div className="flex justify-center my-8">
+        {/* Compact moon visualization */}
+        <div className="flex justify-center mb-3">
           <div className="relative">
-            {/* Realistic moon rendering using CSS */}
-            <div className="w-64 h-64 rounded-full relative overflow-hidden shadow-xl border-4 border-gray-100">
+            {/* Compact moon rendering */}
+            <div className="w-24 h-24 rounded-full relative overflow-hidden shadow-lg border-2 border-white/30">
               {/* Moon base - dark side */}
               <div className="absolute inset-0 bg-gray-900"></div>
               
@@ -206,44 +220,38 @@ export default function LunarPhase() {
                   backgroundImage: "radial-gradient(circle at left, rgba(255,255,255,1) 0%, rgba(220,220,220,1) 100%)"
                 }}></div>
               )}
-              
-              {/* Moon surface details overlay */}
-              <div className="absolute inset-0 opacity-10" 
-                style={{
-                  backgroundImage: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3) 0%, transparent 10%), radial-gradient(circle at 70% 65%, rgba(255,255,255,0.3) 0%, transparent 10%), radial-gradient(circle at 40% 60%, rgba(255,255,255,0.3) 0%, transparent 10%), radial-gradient(circle at 60% 30%, rgba(255,255,255,0.3) 0%, transparent 10%)"
-                }}
-              ></div>
-            </div>
-            
-            {/* Illumination percentage indicator */}
-            <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-base font-semibold text-indigo-800 bg-white px-6 py-2 rounded-full shadow-md border border-indigo-100">
-              {lunarData.illumination}% illuminated
             </div>
           </div>
         </div>
         
-        {/* Next full moon and new moon info */}
-        <div className="mt-8 space-y-4">
-          <div className="bg-indigo-50 p-5 rounded-lg shadow-md border border-indigo-100">
-            <h4 className="text-lg font-semibold text-indigo-800 mb-2">Next Full Moon</h4>
-            <p className="text-lg text-gray-800">{lunarData.nextFullMoon}</p>
+        {/* Compact Illumination percentage */}
+        <div className="w-full bg-white/20 rounded-full h-1 mb-1">
+          <div 
+            className="bg-indigo-400 h-1 rounded-full" 
+            style={{ width: `${lunarData.illumination}%` }}
+          ></div>
+        </div>
+        <p className="text-center text-xs text-white/80 mb-3">
+          Illumination: {lunarData.illumination}%
+        </p>
+        
+        {/* Compact Next moon events */}
+        <div className="space-y-2 text-xs flex-1">
+          <div className="bg-white/10 p-2 rounded-lg border border-white/20">
+            <h4 className="font-medium text-white mb-1">Next Full Moon</h4>
+            <p className="text-indigo-300 text-xs">{lunarData.nextFullMoon.split(',')[0]}</p>
           </div>
-          
-          <div className="bg-blue-50 p-5 rounded-lg shadow-md border border-blue-100">
-            <h4 className="text-lg font-semibold text-blue-800 mb-2">Next New Moon</h4>
-            <p className="text-lg text-gray-800">{lunarData.nextNewMoon}</p>
+          <div className="bg-white/10 p-2 rounded-lg border border-white/20">
+            <h4 className="font-medium text-white mb-1">Next New Moon</h4>
+            <p className="text-indigo-300 text-xs">{lunarData.nextNewMoon.split(',')[0]}</p>
           </div>
         </div>
         
-        {/* Lunar cycle effects section */}
-        <div className="mt-8 pt-4 border-t border-gray-200">
-          <h4 className="text-lg font-medium mb-2 text-gray-700">Lunar Cycle Effects</h4>
-          <p className="text-base text-gray-600">
-            The lunar cycle affects tides, with higher tides during full and new moons (spring tides)
-            and lower tides during quarter moons (neap tides).
-          </p>
+        {/* Calculated data watermark */}
+        <div className="absolute top-2 right-2 z-20 bg-blue-500/90 text-white text-xs px-2 py-1 rounded-full font-bold backdrop-blur-sm border border-blue-300/50">
+          CALC
         </div>
       </div>
-    </CollapsibleContainer>
+    </div>
   );
 } 

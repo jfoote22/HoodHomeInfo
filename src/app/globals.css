@@ -1,35 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-  scroll-behavior: auto;
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 30, 41, 59;
+  scroll-behavior: smooth;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --background-start-rgb: 15, 23, 42;
+    --background-end-rgb: 30, 41, 59;
   }
 }
 
 html {
-  scroll-behavior: auto !important;
+  scroll-behavior: smooth !important;
+  font-size: 18px; /* Larger base font size for TV */
+}
+
+@media (min-width: 1920px) {
+  html {
+    font-size: 20px; /* Even larger for 4K displays */
+  }
+}
+
+@media (min-width: 3840px) {
+  html {
+    font-size: 24px; /* Optimal for 8K displays */
+  }
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: rgb(var(--background-start-rgb));
   overflow-anchor: none;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer utilities {
@@ -40,15 +55,204 @@ body {
   .animate-fadeIn {
     animation: fadeIn 0.3s ease-in forwards;
   }
+  
+  .animate-breathe {
+    animation: breathe 4s ease-in-out infinite;
+  }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+  
+  .font-mono {
+    font-family: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+  }
+  
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .tv-safe {
+    padding: max(5vh, 40px) max(5vw, 60px);
+  }
+  
+  /* TV-optimized text sizes */
+  .text-tv-xs { font-size: 0.875rem; line-height: 1.5; }
+  .text-tv-sm { font-size: 1rem; line-height: 1.5; }
+  .text-tv-base { font-size: 1.25rem; line-height: 1.6; }
+  .text-tv-lg { font-size: 1.5rem; line-height: 1.6; }
+  .text-tv-xl { font-size: 1.875rem; line-height: 1.5; }
+  .text-tv-2xl { font-size: 2.25rem; line-height: 1.4; }
+  .text-tv-3xl { font-size: 3rem; line-height: 1.3; }
+  .text-tv-4xl { font-size: 4rem; line-height: 1.2; }
+  .text-tv-5xl { font-size: 5rem; line-height: 1.1; }
+  .text-tv-6xl { font-size: 6rem; line-height: 1; }
 }
 
 @keyframes fadeIn {
   0% {
     opacity: 0;
-    transform: translateX(10px);
+    transform: translateY(20px);
   }
   100% {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  25% {
+    transform: translateY(-10px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+  75% {
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 40px rgba(59, 130, 246, 0.3);
+  }
+}
+
+/* Custom scrollbar for better TV appearance */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.8);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 1);
+  background-clip: content-box;
+}
+
+/* Leaflet map customizations for dark theme */
+.leaflet-container {
+  background: #1e293b !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* High contrast improvements for TV viewing */
+.high-contrast {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Ensure good contrast on all interactive elements */
+button, select, input {
+  min-height: 44px;
+  font-size: 1.1rem;
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 3px solid #60a5fa;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Prevent text selection on TV interface elements */
+.tv-interface {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Loading animation improvements */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* TV-safe area guidelines */
+.tv-safe-area {
+  padding: min(5vh, 60px) min(5vw, 80px);
+}
+
+/* Enhanced shadows for depth */
+.shadow-tv {
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.shadow-tv-lg {
+  box-shadow: 
+    0 32px 40px -12px rgba(0, 0, 0, 0.4),
+    0 16px 20px -8px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Backdrop blur for modern glass effects */
+.backdrop-blur-strong {
+  backdrop-filter: blur(24px) saturate(180%);
+}
+
+/* Performance optimizations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
 }

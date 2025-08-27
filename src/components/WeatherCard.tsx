@@ -244,49 +244,70 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
   }
 
   return (
-    <div className="h-full bg-gradient-to-b from-blue-900 via-indigo-800 to-purple-900 text-white rounded-xl shadow-md overflow-hidden">
-      <div className="relative p-6">
-        {/* Current Weather */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center">
+    <div className="h-full bg-gradient-to-br from-slate-900/90 via-blue-900/90 to-indigo-900/90 backdrop-blur-xl text-white rounded-3xl shadow-2xl overflow-hidden border border-white/20 relative group hover:shadow-blue-500/25 transition-all duration-700">
+      {/* Atmospheric glow effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 via-transparent to-purple-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-3xl"></div>
+      
+      <div className="relative p-4 z-10">
+        {/* Current Weather - Compact Display */}
+        <div className="text-center mb-4">
+          <h3 className="text-lg font-medium text-white/90 mb-2">Current Conditions</h3>
+          <div className="flex items-center justify-center mb-4">
             <div className="mr-4">
               {getWeatherIcon(weatherData.current.icon, 'w-12 h-12')}
             </div>
-            <div>
-              <h3 className="text-5xl font-bold text-white">{weatherData.current.temp}°F</h3>
-              <p className="text-blue-100 text-lg">{weatherData.current.condition}</p>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-white mb-1 font-mono">{weatherData.current.temp}°</div>
+              <p className="text-lg text-white/90 font-medium">{weatherData.current.condition}</p>
             </div>
           </div>
-          <div className="text-right text-blue-100">
-            <div className="flex items-center justify-end mb-2">
-              <Droplets className="w-5 h-5 mr-2 text-blue-300" />
-              <span>{weatherData.current.humidity}% Humidity</span>
+          
+          {/* Weather details - Compact */}
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="bg-white/10 rounded-xl p-2 backdrop-blur-sm border border-white/20">
+              <div className="flex items-center justify-center mb-1">
+                <Droplets className="w-4 h-4 mr-1 text-cyan-300" />
+                <span className="text-sm font-medium text-white">Humidity</span>
+              </div>
+              <div className="text-lg font-bold text-white text-center">{weatherData.current.humidity}%</div>
             </div>
-            <div className="flex items-center justify-end">
-              <Wind className="w-5 h-5 mr-2 text-blue-300" />
-              <span>{weatherData.current.windSpeed} mph {weatherData.current.windDirection}</span>
+            <div className="bg-white/10 rounded-xl p-2 backdrop-blur-sm border border-white/20">
+              <div className="flex items-center justify-center mb-1">
+                <Wind className="w-4 h-4 mr-1 text-sky-300" />
+                <span className="text-sm font-medium text-white">Wind</span>
+              </div>
+              <div className="text-lg font-bold text-white text-center">{weatherData.current.windSpeed} mph {weatherData.current.windDirection}</div>
             </div>
           </div>
         </div>
         
-        {/* 7-day Forecast */}
-        <div className="bg-white/10 backdrop-blur-sm p-4 rounded-lg">
-          <div className="grid grid-cols-7 gap-2">
+        {/* Compact 7-day Forecast */}
+        <div className="bg-white/10 backdrop-blur-xl p-3 rounded-2xl border border-white/20">
+          <h4 className="text-base font-semibold text-white mb-3 text-center">7-Day Forecast</h4>
+          <div className="grid grid-cols-7 gap-1">
             {weatherData.forecast.map((day, index) => (
-              <div key={index} className="text-center">
-                <p className="text-sm font-medium text-blue-100">{index === 0 ? 'Today' : day.day.substring(0, 3)}</p>
-                <div className="my-2">
-                  {getWeatherIcon(day.icon, 'w-8 h-8 mx-auto')}
+              <div key={index} className="text-center bg-white/5 rounded-lg p-2 border border-white/10">
+                <p className="text-xs font-semibold text-white/90 mb-1">
+                  {index === 0 ? 'Today' : index === 1 ? 'Tom' : day.day.substring(0, 3)}
+                </p>
+                <div className="my-1">
+                  {getWeatherIcon(day.icon, 'w-6 h-6 mx-auto')}
                 </div>
-                <p className="text-sm font-semibold text-white">{day.temp.max}°</p>
-                <p className="text-sm text-blue-200">{day.temp.min}°</p>
+                <div className="space-y-0">
+                  <p className="text-sm font-bold text-white">{day.temp.max}°</p>
+                  <p className="text-xs text-white/70">{day.temp.min}°</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
         
         {/* Show watermark for mock data */}
-        {isMockData && <MockDataWatermark />}
+        {isMockData && (
+          <div className="absolute top-4 right-4 z-20 bg-red-500/90 text-white text-xs px-3 py-1 rounded-full font-bold backdrop-blur-sm border border-red-300/50">
+            MOCK DATA
+          </div>
+        )}
       </div>
     </div>
   );
