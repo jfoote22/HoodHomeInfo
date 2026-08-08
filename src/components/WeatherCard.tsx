@@ -40,63 +40,32 @@ export default function WeatherCard({ location = 'Hood Canal, WA' }: { location?
       setIsMockData(false);
       
       try {
-        // Get location coordinates from env variables
-        const lat = process.env.NEXT_PUBLIC_LOCATION_LAT || '47.6255';
-        const lon = process.env.NEXT_PUBLIC_LOCATION_LON || '-122.9289';
-        const apiKey = process.env.NEXT_PUBLIC_WEATHER_API_KEY || '210dd970bfe8fb78e5bb5f8573c4716f';
+        // Use reliable weather API endpoint
+        const response = await fetch('/api/weather/reliable');
         
-        // Fetch current weather
-        const currentWeatherResponse = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=imperial`
-        );
-        
-        if (!currentWeatherResponse.ok) {
-          throw new Error('Failed to fetch current weather data');
+        if (!response.ok) {
+          throw new Error('Failed to fetch reliable weather data');
         }
         
-        const currentWeatherData = await currentWeatherResponse.json();
+        const reliableData = await response.json();
         
-        // Fetch 7-day forecast
-        const forecastResponse = await fetch(
-          `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=imperial`
-        );
-        
-        if (!forecastResponse.ok) {
-          throw new Error('Failed to fetch forecast data');
+        if (reliableData.error) {
+          throw new Error(reliableData.details || 'Unknown error from reliable weather API');
         }
         
-        const forecastData = await forecastResponse.json();
         
-        // Process current weather data
-        const windDirection = getWindDirection(currentWeatherData.wind.deg);
-        const current = {
-          temp: Math.round(currentWeatherData.main.temp),
-          condition: currentWeatherData.weather[0].main,
-          humidity: currentWeatherData.main.humidity,
-          windSpeed: Math.round(currentWeatherData.wind.speed),
-          windDirection,
-          icon: mapWeatherToIcon(currentWeatherData.weather[0].id)
-        };
-        
-        // Process forecast data - get daily forecast
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const dailyForecasts = processForecastData(forecastData);
-        const today = new Date().getDay();
-        
-        const forecast = dailyForecasts.map((day, index) => {
-          const dayIndex = (today + index) % 7;
-          return {
-            day: days[dayIndex],
-            temp: {
-              min: Math.round(day.minTemp),
-              max: Math.round(day.maxTemp)
-            },
-            condition: day.condition,
-            icon: mapWeatherToIcon(day.weatherId)
-          };
+        // Use the processed data from reliable API
+        setWeatherData({
+          current: reliableData.current || {
+            temp: 55,
+            condition: 'Clear',
+            humidity: 65,
+            windSpeed: 5,
+            windDirection: 'NW',
+            icon: 'sun'
+          },
+          forecast: reliableData.forecast || []
         });
-        
-        setWeatherData({ current, forecast });
       } catch (error) {
         console.error('Error fetching weather data:', error);
         setError('Failed to load weather data');

@@ -1,0 +1,22 @@
+{
+  "updatedAt": "2026-08-07T07:00:00-07:00",
+  "events": [
+    {
+      "id": "hermes-1",
+      "title": "Hood Canal Seafood Festival",
+      "date": "Sat, Aug 15",
+      "time": "10:00 AM",
+      "location": "Union waterfront",
+      "category": "Festival",
+      "description": "Optional longer description, not currently shown on the dashboard."
+    },
+    {
+      "id": "hermes-2",
+      "title": "Union Farmers Market",
+      "date": "Sun, Aug 16",
+      "time": "9:00 AM",
+      "location": "Alderbrook lawn",
+      "category": "Market"
+    }
+  ]
+}

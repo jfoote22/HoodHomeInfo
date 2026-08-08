@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Calendar, MapPin, Clock, Filter, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import EventModal from './EventModal';
 import ReactDOM from 'react-dom';
+import ScrollableWindow from './ScrollableWindow';
 
 interface Event {
   id: string;
@@ -267,7 +268,12 @@ export default function EventList({ fullWidth = false }: EventListProps) {
           {/* Compact Events grid */}
           <div className="grid grid-cols-7 gap-1" style={{ minHeight: '4rem' }}>
             {eventsByDay.map((day, dayIndex) => (
-              <div key={dayIndex} className="space-y-1 min-h-0 max-h-40 overflow-y-auto">
+              <ScrollableWindow
+                key={dayIndex} 
+                className="space-y-1 min-h-0"
+                maxHeight="10rem"
+                scrollbarColor="emerald"
+              >
                 {day.events.length > 0 ? (
                   day.events.map((event, eventIndex) => (
                     <div 
@@ -301,7 +307,7 @@ export default function EventList({ fullWidth = false }: EventListProps) {
                 ) : (
                   <div className="text-center text-xs text-white/60 pt-4 italic">No events</div>
                 )}
-              </div>
+              </ScrollableWindow>
             ))}
           </div>
         </div>

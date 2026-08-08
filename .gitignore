@@ -36,3 +36,6 @@ yarn-error.log*
 next-env.d.ts
 
 .env
+
+# Hermes-generated live events data (machine-local, changes daily)
+/data/hermes-events.json

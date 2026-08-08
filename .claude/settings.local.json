@@ -3,7 +3,18 @@
     "allow": [
       "Bash(git push:*)",
       "Bash(git commit:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "WebSearch",
+      "Bash(curl:*)",
+      "Bash(powershell:*)",
+      "Bash(node:*)",
+      "Bash(set PORT=3001)",
+      "Bash(cross-env:*)",
+      "Bash(npm --version)",
+      "Bash(npx tsc *)",
+      "Bash(awk -F= '{ if \\(length\\($2\\) > 0\\) print $1\" = SET \\(\"length\\($2\\)\" chars\\)\"; else print $1\" = EMPTY\" }' .env.local)"
     ],
     "deny": [],
     "ask": []

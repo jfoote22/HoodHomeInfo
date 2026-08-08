@@ -30,13 +30,26 @@ export interface LocalData {
 
 export function useLocalData() {
   const [localData, setLocalData] = useState<LocalData>({
-    time: new Date().toLocaleTimeString(),
+    time: 'Loading...',
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Update time every minute
+  // Set client flag after component mounts
   useEffect(() => {
+    setIsClient(true);
+    // Set initial time after hydration
+    setLocalData(prev => ({
+      ...prev,
+      time: new Date().toLocaleTimeString()
+    }));
+  }, []);
+
+  // Update time every minute (only on client)
+  useEffect(() => {
+    if (!isClient) return;
+    
     const timer = setInterval(() => {
       setLocalData(prev => ({
         ...prev,
@@ -45,10 +58,12 @@ export function useLocalData() {
     }, 60000);
     
     return () => clearInterval(timer);
-  }, []);
+  }, [isClient]);
 
   // Fetch weather, tides, and sun data
   useEffect(() => {
+    if (!isClient) return;
+    
     async function fetchLocalData() {
       setIsLoading(true);
       setError(null);
@@ -108,8 +123,9 @@ export function useLocalData() {
         const sunrise = `${sunriseHour}:${sunriseMinute.toString().padStart(2, '0')} AM`;
         const sunset = `${sunsetHour - 12}:${sunsetMinute.toString().padStart(2, '0')} PM`;
 
-        setLocalData({
-          time: new Date().toLocaleTimeString(),
+        setLocalData(prev => ({
+          ...prev,
+          time: isClient ? new Date().toLocaleTimeString() : prev.time,
           weather: weatherData,
           tides: {
             current: currentTideIndex >= 0 ? todayTides[currentTideIndex] : undefined,
@@ -118,7 +134,7 @@ export function useLocalData() {
           },
           sunrise,
           sunset
-        });
+        }));
       } catch (err) {
         setError('Error fetching local data');
         console.error('Error fetching local data:', err);
@@ -133,7 +149,7 @@ export function useLocalData() {
     const dataRefreshInterval = setInterval(fetchLocalData, 30 * 60 * 1000); // Refresh every 30 minutes
     
     return () => clearInterval(dataRefreshInterval);
-  }, []);
+  }, [isClient]);
 
   return { localData, isLoading, error };
 } 

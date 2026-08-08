@@ -51,37 +51,37 @@ body {
   .text-balance {
     text-wrap: balance;
   }
-  
+
   .animate-fadeIn {
     animation: fadeIn 0.3s ease-in forwards;
   }
-  
+
   .animate-breathe {
     animation: breathe 4s ease-in-out infinite;
   }
-  
+
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }
-  
+
   .animate-glow {
     animation: glow 2s ease-in-out infinite alternate;
   }
-  
+
   .font-mono {
     font-family: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
   }
-  
+
   .glass-effect {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
-  
+
   .tv-safe {
     padding: max(5vh, 40px) max(5vw, 60px);
   }
-  
+
   /* TV-optimized text sizes */
   .text-tv-xs { font-size: 0.875rem; line-height: 1.5; }
   .text-tv-sm { font-size: 1rem; line-height: 1.5; }
@@ -141,9 +141,10 @@ body {
   }
 }
 
-/* Custom scrollbar for better TV appearance */
+/* Enhanced Custom scrollbars for modular windows */
 ::-webkit-scrollbar {
-  width: 12px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -154,13 +155,54 @@ body {
 ::-webkit-scrollbar-thumb {
   background: rgba(59, 130, 246, 0.8);
   border-radius: 10px;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(59, 130, 246, 1);
   background-clip: content-box;
+}
+
+/* Scrollbar variants for different colored windows */
+.scrollbar-blue::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.8);
+}
+
+.scrollbar-blue::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 1);
+}
+
+.scrollbar-emerald::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.8);
+}
+
+.scrollbar-emerald::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 1);
+}
+
+.scrollbar-cyan::-webkit-scrollbar-thumb {
+  background: rgba(34, 197, 218, 0.8);
+}
+
+.scrollbar-cyan::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 197, 218, 1);
+}
+
+.scrollbar-amber::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.8);
+}
+
+.scrollbar-amber::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 1);
+}
+
+.scrollbar-purple::-webkit-scrollbar-thumb {
+  background: rgba(147, 51, 234, 0.8);
+}
+
+.scrollbar-purple::-webkit-scrollbar-thumb:hover {
+  background: rgba(147, 51, 234, 1);
 }
 
 /* Leaflet map customizations for dark theme */
@@ -244,14 +286,14 @@ button, select, input {
 
 /* Enhanced shadows for depth */
 .shadow-tv {
-  box-shadow: 
+  box-shadow:
     0 20px 25px -5px rgba(0, 0, 0, 0.3),
     0 10px 10px -5px rgba(0, 0, 0, 0.2),
     0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .shadow-tv-lg {
-  box-shadow: 
+  box-shadow:
     0 32px 40px -12px rgba(0, 0, 0, 0.4),
     0 16px 20px -8px rgba(0, 0, 0, 0.3),
     0 0 0 1px rgba(255, 255, 255, 0.1);
@@ -266,4 +308,75 @@ button, select, input {
 .gpu-accelerated {
   transform: translateZ(0);
   will-change: transform;
+}
+
+/* Enhanced scroll indicators for modular windows */
+.scroll-fade-top {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, transparent 20px);
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  z-index: 10;
+}
+
+.scroll-fade-bottom {
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.1) 0%, transparent 20px);
+  pointer-events: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  z-index: 10;
+}
+
+/* Smooth scroll behavior for all scrollable elements */
+.scroll-container {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbars on mobile while keeping functionality */
+@media (max-width: 768px) {
+  .mobile-hidden-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .mobile-hidden-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================================
+   Marine Wall Dashboard (design_handoff_marine_dashboard)
+   ============================================================ */
+
+@keyframes dashboardBreathe {
+  0%, 100% { transform: scale(1); opacity: .82; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+
+@keyframes dashboardBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .28; }
+}
+
+/* Pulsing ring on whale-sighting map markers (see MarineMapPanel.tsx) */
+.hh-ping-ring {
+  animation: hhPingPulse 2.8s ease-out infinite;
+}
+
+@keyframes hhPingPulse {
+  0% { transform: scale(0.5); opacity: 0.75; }
+  100% { transform: scale(2.3); opacity: 0; }
+}
+
+/* The dashboard's own map tiles/popups run dark or light per theme, independent of the
+   legacy .leaflet-container dark override above. */
+.leaflet-container {
+  font-family: 'Public Sans', sans-serif;
 }

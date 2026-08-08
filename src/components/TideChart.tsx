@@ -31,6 +31,7 @@ export default function TideChart() {
   const [error, setError] = useState<string | null>(null);
   const [isTableVisible, setIsTableVisible] = useState(false);
   const [isMockData, setIsMockData] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   // Always start with the current day, not a selected day
   const currentDate = new Date();
@@ -56,6 +57,12 @@ export default function TideChart() {
   };
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    
     async function fetchTideData() {
       setLoading(true);
       setError(null);
@@ -131,7 +138,10 @@ export default function TideChart() {
       // Generate simulated tides for THREE days
       const daysToShow = getDaysToShow();
       
-      daysToShow.forEach((day) => {
+      // Use deterministic values based on day to avoid hydration issues
+      const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+      
+      daysToShow.forEach((day, dayIndex) => {
         const tideTypes: ('High' | 'Low')[] = ['Low', 'High', 'Low', 'High'];
         const tideHours = [3, 9, 15, 21]; // Simulated tide times
         
@@ -139,13 +149,16 @@ export default function TideChart() {
           const tideTime = new Date(day);
           tideTime.setHours(tideHours[index], 0, 0, 0);
           
+          // Create deterministic variance based on day and tide index
+          const variance = ((dayOfYear + dayIndex + index) % 20) / 10; // 0.0 to 1.9
+          
           tides.push({
             type,
             time: tideTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             date: tideTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }),
             height: type === 'High' ? 
-              `${(Math.random() * 2 + 10).toFixed(2)} ft` : 
-              `${(Math.random() * 2 + 1).toFixed(2)} ft`,
+              `${(variance + 10).toFixed(2)} ft` : 
+              `${(variance * 0.5 + 1).toFixed(2)} ft`,
             timestamp: tideTime.getTime()
           });
         });
@@ -189,7 +202,7 @@ export default function TideChart() {
       clearTimeout(midnightTimeout);
       clearInterval(hourlyRefresh);
     };
-  }, []);
+  }, [mounted]);
 
   // Generate more data points to make curve smoother
   const generateDetailedTideCurve = (tidesToChart: TideInfo[]) => {
@@ -258,7 +271,7 @@ export default function TideChart() {
     return `${date.toLocaleDateString([], { weekday: 'short', month: 'numeric', day: 'numeric' })} ${date.getHours() === 0 ? '12 AM' : date.getHours() === 12 ? '12 PM' : date.getHours() > 12 ? `${date.getHours() - 12} PM` : `${date.getHours()} AM`}`;
   };
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="bg-white rounded-xl shadow-md p-4 animate-pulse">
         <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
