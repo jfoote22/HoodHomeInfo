@@ -136,14 +136,15 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
           border: `1px solid ${theme.accentA}38`,
           borderRadius: 16,
           padding: '16px 18px',
-          maxHeight: 190,
-          overflow: 'hidden',
+          maxHeight: 340,
+          overflowY: 'auto',
+          scrollbarWidth: 'none',
         }}
       >
         <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, letterSpacing: '.18em', color: theme.accentA, textTransform: 'uppercase', marginBottom: 8 }}>
           {cardLabel}
         </div>
-        <p style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: theme.bodySecondary }}>{responseText}</p>
+        <p style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: theme.bodySecondary, whiteSpace: 'pre-line' }}>{responseText}</p>
       </div>
 
       <form
