@@ -5,6 +5,7 @@ import ScaleToFit from './ScaleToFit';
 import AIVoiceAgentPanel from './AIVoiceAgentPanel';
 import WeatherTidesPanel from './WeatherTidesPanel';
 import LocalEventsPanel from './LocalEventsPanel';
+import SportsPanel from './SportsPanel';
 import KioskBehaviors from './KioskBehaviors';
 import { DashboardDataProvider } from './DashboardDataContext';
 import { useDashboardTheme } from './DashboardThemeContext';
@@ -37,7 +38,15 @@ export default function MarineDashboard() {
           }}
         >
           <AIVoiceAgentPanel theme={theme} />
-          <MarineMapPanel theme={theme} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 22, minHeight: 0, minWidth: 0 }}>
+            <div style={{ flex: 2, minHeight: 0 }}>
+              <MarineMapPanel theme={theme} />
+            </div>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 22 }}>
+              <SportsPanel team="mariners" theme={theme} />
+              <SportsPanel team="seahawks" theme={theme} />
+            </div>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22, minHeight: 0 }}>
             <WeatherTidesPanel theme={theme} />
             <LocalEventsPanel theme={theme} />

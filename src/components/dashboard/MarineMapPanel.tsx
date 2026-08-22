@@ -151,52 +151,46 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
 
       {/* Legibility scrims */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 150, background: 'linear-gradient(180deg, rgba(6,12,22,.78), transparent)', pointerEvents: 'none', zIndex: OVERLAY_Z - 1 }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140, background: 'linear-gradient(0deg, rgba(6,12,22,.68), transparent)', pointerEvents: 'none', zIndex: OVERLAY_Z - 1 }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 70, background: 'linear-gradient(0deg, rgba(6,12,22,.55), transparent)', pointerEvents: 'none', zIndex: OVERLAY_Z - 1 }} />
 
       {/* Title + clock */}
       <div style={{ position: 'absolute', top: 26, left: 30, pointerEvents: 'none', zIndex: OVERLAY_Z }}>
         <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 13, letterSpacing: '.24em', color: '#9ec7ef', textTransform: 'uppercase' }}>
           Union, WA <span style={{ color: '#c3d3e4', opacity: 0.9 }}>· {formatClock(now)}</span>
         </div>
-        <div style={{ fontFamily: FONT_FAMILIES.display, fontWeight: 700, fontSize: 54, lineHeight: 0.95, letterSpacing: 1, color: '#f4f8fd' }}>MARINE MAP</div>
+        <div style={{ fontFamily: FONT_FAMILIES.display, fontWeight: 700, fontSize: 46, lineHeight: 0.95, letterSpacing: 1, color: '#f4f8fd' }}>MARINE MAP</div>
       </div>
 
-      {/* Live badge */}
-      <div style={{ ...glassPill, position: 'absolute', top: 30, right: 30, gap: 9, padding: '8px 14px', zIndex: OVERLAY_Z }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: isPlaceholder ? '#f59e0b' : theme.liveGreen, animation: isPlaceholder ? undefined : 'dashboardBlink 1.6s infinite' }} />
-        {liveLabel}
-      </div>
-
-      {/* Legend */}
-      <div style={{ position: 'absolute', bottom: 26, left: 30, display: 'flex', gap: 10, zIndex: OVERLAY_Z }}>
-        {(legend.length ? legend : (['orca'] as SightingSpecies[])).map((sp) => (
-          <span key={sp} style={glassPill}>
-            <span style={{ width: 9, height: 9, borderRadius: '50%', background: speciesColor(sp, theme) }} />
-            {SPECIES_LABEL[sp]}
+      {/* Top-right stack: legend + LIVE on one row, tide direction just under it */}
+      <div style={{ position: 'absolute', top: 30, right: 30, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10, zIndex: OVERLAY_Z }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {(legend.length ? legend : (['orca'] as SightingSpecies[])).map((sp) => (
+            <span key={sp} style={glassPill}>
+              <span style={{ width: 9, height: 9, borderRadius: '50%', background: speciesColor(sp, theme) }} />
+              {SPECIES_LABEL[sp]}
+            </span>
+          ))}
+          <span style={{ ...glassPill, gap: 9, padding: '8px 14px' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: isPlaceholder ? '#f59e0b' : theme.liveGreen, animation: isPlaceholder ? undefined : 'dashboardBlink 1.6s infinite' }} />
+            {liveLabel}
           </span>
-        ))}
-      </div>
-
-      {/* Tide direction badge */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 26,
-          right: 30,
-          zIndex: OVERLAY_Z,
-          background: 'rgba(10,20,32,.62)',
-          border: '1px solid rgba(255,255,255,.1)',
-          backdropFilter: 'blur(8px)',
-          borderRadius: 16,
-          padding: '14px 18px',
-          textAlign: 'center',
-        }}
-      >
-        <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, letterSpacing: '.16em', color: '#9ec7ef', textTransform: 'uppercase', marginBottom: 6 }}>
-          Tide Direction
         </div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: '#f4f8fd' }}>
-          {tideRateLabel} <span style={{ color: '#c3d3e4', fontWeight: 400 }}>{tideDirectionLabel}</span>
+        <div
+          style={{
+            background: 'rgba(10,20,32,.62)',
+            border: '1px solid rgba(255,255,255,.1)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: 14,
+            padding: '9px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 10, letterSpacing: '.16em', color: '#9ec7ef', textTransform: 'uppercase' }}>Tide Direction</span>
+          <span style={{ fontSize: 15, fontWeight: 600, color: '#f4f8fd' }}>
+            {tideRateLabel} <span style={{ color: '#c3d3e4', fontWeight: 400 }}>{tideDirectionLabel}</span>
+          </span>
         </div>
       </div>
     </div>
