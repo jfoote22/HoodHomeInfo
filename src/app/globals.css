@@ -380,3 +380,17 @@ button, select, input {
 .leaflet-container {
   font-family: 'Public Sans', sans-serif;
 }
+
+/* Local Events panel: long titles glide left/right so they can be read; the list itself
+   is scrolled by JS (see LocalEventsPanel.tsx). --hh-shift is set per title. */
+@keyframes hhMarquee {
+  0%, 18% { transform: translateX(0); }
+  45%, 58% { transform: translateX(var(--hh-shift, 0px)); }
+  85%, 100% { transform: translateX(0); }
+}
+.hh-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: hhMarquee var(--hh-duration, 12s) ease-in-out infinite;
+  will-change: transform;
+}

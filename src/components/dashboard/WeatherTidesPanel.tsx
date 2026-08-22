@@ -6,6 +6,9 @@ import { useDashboardData } from './DashboardDataContext';
 
 export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) {
   const { weather, tide } = useDashboardData();
+  const hairline = theme.isLight ? 'rgba(20,34,47,.08)' : 'rgba(255,255,255,.06)';
+  const viewW = tide?.viewW ?? 380;
+  const viewH = tide?.viewH ?? 120;
 
   return (
     <div
@@ -20,7 +23,7 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         padding: 24,
         display: 'flex',
         flexDirection: 'column',
-        gap: 18,
+        gap: 14,
         fontFamily: FONT_FAMILIES.body,
         minHeight: 0,
       }}
@@ -32,6 +35,7 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         <span style={{ fontSize: 13, color: theme.muted }}>Union, WA</span>
       </div>
 
+      {/* Today - the hero */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <WeatherIcon icon={weather?.icon || 'sun'} size={52} theme={theme} />
@@ -50,6 +54,7 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         </div>
       </div>
 
+      {/* Today's hourly strip */}
       <div style={{ display: 'flex', gap: 8 }}>
         {(weather?.hourly || []).slice(0, 5).map((h, i) => {
           const isNow = h.label === 'NOW';
@@ -61,12 +66,12 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
                 background: isNow ? `${theme.accentA}14` : 'transparent',
                 border: isNow ? `1px solid ${theme.accentA}29` : '1px solid transparent',
                 borderRadius: 12,
-                padding: '11px 0',
+                padding: '9px 0',
                 textAlign: 'center',
               }}
             >
               <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: isNow ? theme.accentA : theme.muted }}>{h.label}</div>
-              <div style={{ margin: '4px 0' }}>
+              <div style={{ margin: '3px 0' }}>
                 <WeatherIcon icon={h.icon} size={22} theme={theme} />
               </div>
               <div style={{ fontSize: 15, fontWeight: 600, color: theme.text }}>{h.tempF}°</div>
@@ -75,40 +80,87 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         })}
       </div>
 
+      {/* Next three days - quieter, secondary */}
+      <div style={{ display: 'flex', gap: 8, borderTop: `1px solid ${hairline}`, paddingTop: 10 }}>
+        {(weather?.daily || []).slice(0, 3).map((d, i) => (
+          <div key={i} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '4px 0', whiteSpace: 'nowrap' }}>
+            <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, letterSpacing: '.1em', color: theme.muted, textTransform: 'uppercase' }}>
+              {d.day}
+            </span>
+            <WeatherIcon icon={d.icon} size={20} theme={theme} />
+            <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 12.5, color: theme.bodySecondary, whiteSpace: 'nowrap' }}>
+              <span style={{ color: theme.text, fontWeight: 700 }}>{d.hiF}°</span>
+              <span style={{ color: theme.dim }}>/{d.loF}°</span>
+            </span>
+          </div>
+        ))}
+        {!weather?.daily?.length && <div style={{ flex: 1, fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.dim, textAlign: 'center' }}>forecast loading…</div>}
+      </div>
+
+      {/* Tides - 3 days, today emphasized */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
         <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, letterSpacing: '.16em', color: theme.eyebrow, textTransform: 'uppercase' }}>
           Tide Graph
         </span>
-        <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.muted }}>next 12h</span>
+        <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.muted }}>next 3 days</span>
       </div>
 
-      <svg viewBox="0 0 380 110" style={{ width: '100%', height: 92 }}>
+      <svg viewBox={`0 0 ${viewW} ${viewH}`} style={{ width: '100%', height: 112, overflow: 'visible' }}>
         <defs>
           <linearGradient id="tideGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={theme.accentA} stopOpacity={theme.isLight ? 0.28 : 0.35} />
+            <stop offset="0" stopColor={theme.accentA} stopOpacity={theme.isLight ? 0.3 : 0.38} />
             <stop offset="1" stopColor={theme.accentA} stopOpacity={0} />
           </linearGradient>
         </defs>
         {tide && (
           <>
-            <path d={tide.areaPath} fill="url(#tideGrad)" />
-            <path d={tide.linePath} fill="none" stroke={theme.accentA} strokeWidth={2.5} />
-            {tide.highMarker && (
-              <>
-                <circle cx={tide.highMarker.x} cy={tide.highMarker.y} r={4} fill={theme.accentA} />
-                <text x={tide.highMarker.x} y={tide.highMarker.y - 9} textAnchor="middle" fill={theme.accentA} fontFamily={FONT_FAMILIES.mono} fontSize={10}>
-                  {tide.highMarker.label}
+            {/* Day bands + labels */}
+            {tide.days.map((d) => (
+              <g key={d.label}>
+                {d.isToday && <rect x={d.x0} y={0} width={d.x1 - d.x0} height={viewH} fill={theme.accentA} opacity={theme.isLight ? 0.05 : 0.06} rx={6} />}
+                {!d.isToday && <line x1={d.x0} y1={4} x2={d.x0} y2={viewH - 2} stroke={hairline} strokeWidth={1} />}
+                <text
+                  x={d.x0 + 6}
+                  y={11}
+                  fill={d.isToday ? theme.accentA : theme.dim}
+                  fontFamily={FONT_FAMILIES.mono}
+                  fontSize={9}
+                  letterSpacing={1}
+                  fontWeight={d.isToday ? 700 : 400}
+                >
+                  {d.label}
                 </text>
-              </>
+              </g>
+            ))}
+
+            {/* Full 3-day curve (dim) then today's slice on top (bright) */}
+            <path d={tide.linePath} fill="none" stroke={theme.accentA} strokeWidth={1.5} opacity={0.35} />
+            <path d={tide.todayAreaPath} fill="url(#tideGrad)" />
+            <path d={tide.todayLinePath} fill="none" stroke={theme.accentA} strokeWidth={2.5} />
+
+            {/* Hi/lo dots: today's get labels, later days just small ticks */}
+            {tide.days.flatMap((d) =>
+              d.extremes.map((e, i) =>
+                d.isToday ? (
+                  <g key={`${d.label}-${i}`}>
+                    <circle cx={e.x} cy={e.y} r={3.5} fill={e.type === 'High' ? theme.accentA : theme.muted} />
+                    <text
+                      x={e.x}
+                      y={e.type === 'High' ? e.y - 7 : e.y + 12}
+                      textAnchor="middle"
+                      fill={e.type === 'High' ? theme.accentA : theme.muted}
+                      fontFamily={FONT_FAMILIES.mono}
+                      fontSize={8.5}
+                    >
+                      {e.timeLabel}
+                    </text>
+                  </g>
+                ) : (
+                  <circle key={`${d.label}-${i}`} cx={e.x} cy={e.y} r={2.2} fill={e.type === 'High' ? theme.accentA : theme.muted} opacity={0.6} />
+                ),
+              ),
             )}
-            {tide.lowMarker && (
-              <>
-                <circle cx={tide.lowMarker.x} cy={tide.lowMarker.y} r={4} fill={theme.muted} />
-                <text x={tide.lowMarker.x} y={tide.lowMarker.y + 14} textAnchor="middle" fill={theme.muted} fontFamily={FONT_FAMILIES.mono} fontSize={10}>
-                  {tide.lowMarker.label}
-                </text>
-              </>
-            )}
+
             {tide.nowDot && (
               <>
                 <circle cx={tide.nowDot.x} cy={tide.nowDot.y} r={5} fill={theme.accentB} />

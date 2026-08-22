@@ -1,9 +1,12 @@
 'use client';
 
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { useDashboardData } from './DashboardDataContext';
+import type { DashboardEvent } from '../../lib/hooks/useDashboardEvents';
 
-const MAX_ROWS = 4;
+const SCROLL_PX_PER_SEC = 14; // gentle, readable from the couch
+const HOLD_MS = 4500; // pause at top/bottom before reversing
 
 const SOURCE_LABEL: Record<string, string> = {
   'north-mason-chamber': 'North Mason Chamber',
@@ -16,18 +19,153 @@ function minutesAgo(from: Date | null, now: Date): string {
   const m = Math.max(0, Math.round((now.getTime() - from.getTime()) / 60000));
   if (m < 1) return 'just now';
   if (m < 60) return `${m} min ago`;
-  const h = Math.round(m / 60);
-  return `${h}h ago`;
+  return `${Math.round(m / 60)}h ago`;
+}
+
+/** Title that glides sideways when it's wider than its box so the whole thing can be read. */
+function MarqueeText({ text, style }: { text: string; style: React.CSSProperties }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [shift, setShift] = useState(0);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const box = boxRef.current;
+      const span = textRef.current;
+      if (!box || !span) return;
+      const overflow = span.scrollWidth - box.clientWidth;
+      setShift(overflow > 4 ? -overflow - 6 : 0);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (boxRef.current) ro.observe(boxRef.current);
+    return () => ro.disconnect();
+  }, [text]);
+
+  const duration = Math.max(10, Math.min(26, Math.abs(shift) / 18 + 9));
+  return (
+    <div ref={boxRef} style={{ ...style, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+      <span
+        ref={textRef}
+        className={shift ? 'hh-marquee' : undefined}
+        style={shift ? ({ '--hh-shift': `${shift}px`, '--hh-duration': `${duration}s` } as React.CSSProperties) : { display: 'inline-block', whiteSpace: 'nowrap' }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
+function EventRow({ event, theme, isLast }: { event: DashboardEvent; theme: DashboardTheme; isLast: boolean }) {
+  const isToday = event.dayLabel === 'TODAY';
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div
+          style={{
+            width: 80,
+            height: 60,
+            borderRadius: 12,
+            flexShrink: 0,
+            overflow: 'hidden',
+            background: event.imageUrl
+              ? theme.eventStripeA
+              : `repeating-linear-gradient(135deg, ${theme.eventStripeA}, ${theme.eventStripeA} 7px, ${theme.eventStripeB} 7px, ${theme.eventStripeB} 14px)`,
+            display: 'grid',
+            placeItems: 'center',
+            border: `1px solid ${theme.isLight ? 'rgba(20,34,47,.06)' : 'rgba(255,255,255,.06)'}`,
+          }}
+        >
+          {event.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={event.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
+          ) : (
+            <span style={{ fontFamily: FONT_FAMILIES.display, fontWeight: 700, fontSize: 22, color: theme.dim, letterSpacing: 1 }}>
+              {event.start.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'America/Los_Angeles' })}
+            </span>
+          )}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <MarqueeText text={event.title} style={{ fontSize: 17, fontWeight: 600, color: theme.text }} />
+          <MarqueeText text={event.dateLabel} style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 12, color: theme.muted, marginTop: 3 }} />
+        </div>
+        <span
+          style={{
+            fontFamily: FONT_FAMILIES.mono,
+            fontSize: 12,
+            color: isToday ? (theme.isLight ? '#fff' : '#04121f') : theme.dayPillText,
+            background: isToday ? theme.accentA : theme.dayPillBg,
+            padding: '5px 10px',
+            borderRadius: 8,
+            flexShrink: 0,
+          }}
+        >
+          {event.dayLabel}
+        </span>
+      </div>
+      {!isLast && <div style={{ height: 1, background: theme.isLight ? 'rgba(20,34,47,.08)' : 'rgba(255,255,255,.06)', margin: '14px 0' }} />}
+    </div>
+  );
 }
 
 export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
   const { events: eventsState, now } = useDashboardData();
   const { events, isPlaceholder, fetchedAt, sources } = eventsState;
-  const rows = events.slice(0, MAX_ROWS);
+
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState(0);
+  const [canScroll, setCanScroll] = useState(false);
+
+  // Slow ping-pong auto-scroll when the list is taller than the viewport:
+  // hold at top → glide to bottom → hold → glide back up, forever.
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const list = listRef.current;
+    if (!viewport || !list) return;
+
+    let raf = 0;
+    let last = performance.now();
+    let dir = 1; // 1 = scrolling down (content moves up)
+    let holdUntil = last + HOLD_MS;
+    let pos = 0;
+
+    const tick = (t: number) => {
+      const max = Math.max(0, list.scrollHeight - viewport.clientHeight);
+      setCanScroll(max > 2);
+      if (max <= 2) {
+        pos = 0;
+        setOffset(0);
+        raf = requestAnimationFrame(tick);
+        last = t;
+        return;
+      }
+      if (t >= holdUntil) {
+        const dt = (t - last) / 1000;
+        pos += dir * SCROLL_PX_PER_SEC * dt;
+        if (pos >= max) {
+          pos = max;
+          dir = -1;
+          holdUntil = t + HOLD_MS;
+        } else if (pos <= 0) {
+          pos = 0;
+          dir = 1;
+          holdUntil = t + HOLD_MS;
+        }
+        setOffset(pos);
+      }
+      last = t;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [events.length]);
 
   const footer = isPlaceholder
     ? 'Example events · live feeds unavailable right now'
-    : `Auto-updating · ${sources.map((s) => SOURCE_LABEL[s] || s).join(' + ')} · pulled ${minutesAgo(fetchedAt, now)}`;
+    : `Auto-updating · ${events.length} upcoming · ${sources.map((s) => SOURCE_LABEL[s] || s).join(' + ')} · pulled ${minutesAgo(fetchedAt, now)}`;
+
+  const fadeColor = theme.isLight ? '255,255,255' : '13,23,41';
 
   return (
     <div
@@ -52,64 +190,29 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
         <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 12, letterSpacing: '.22em', color: theme.eyebrow, textTransform: 'uppercase' }}>
           Local Events
         </span>
-        <span style={{ fontSize: 13, color: theme.muted }}>Hood Canal area</span>
+        <span style={{ fontSize: 13, color: theme.muted }}>
+          Hood Canal area
+          {canScroll && <span style={{ color: theme.dim }}> · {events.length}</span>}
+        </span>
       </div>
 
-      {rows.map((event, i) => {
-        const isToday = event.dayLabel === 'TODAY';
-        return (
-          <div key={event.id}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div
-                style={{
-                  width: 80,
-                  height: 60,
-                  borderRadius: 12,
-                  flexShrink: 0,
-                  overflow: 'hidden',
-                  background: event.imageUrl
-                    ? theme.eventStripeA
-                    : `repeating-linear-gradient(135deg, ${theme.eventStripeA}, ${theme.eventStripeA} 7px, ${theme.eventStripeB} 7px, ${theme.eventStripeB} 14px)`,
-                  display: 'grid',
-                  placeItems: 'center',
-                  border: `1px solid ${theme.isLight ? 'rgba(20,34,47,.06)' : 'rgba(255,255,255,.06)'}`,
-                }}
-              >
-                {event.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={event.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
-                ) : (
-                  <span style={{ fontFamily: FONT_FAMILIES.display, fontWeight: 700, fontSize: 22, color: theme.dim, letterSpacing: 1 }}>
-                    {event.start.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'America/Los_Angeles' })}
-                  </span>
-                )}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 17, fontWeight: 600, color: theme.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{event.title}</div>
-                <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 12, color: theme.muted, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {event.dateLabel}
-                </div>
-              </div>
-              <span
-                style={{
-                  fontFamily: FONT_FAMILIES.mono,
-                  fontSize: 12,
-                  color: isToday ? (theme.isLight ? '#fff' : '#04121f') : theme.dayPillText,
-                  background: isToday ? theme.accentA : theme.dayPillBg,
-                  padding: '5px 10px',
-                  borderRadius: 8,
-                  flexShrink: 0,
-                }}
-              >
-                {event.dayLabel}
-              </span>
-            </div>
-            {i < rows.length - 1 && <div style={{ height: 1, background: theme.isLight ? 'rgba(20,34,47,.08)' : 'rgba(255,255,255,.06)', marginTop: 14 }} />}
-          </div>
-        );
-      })}
+      {/* Scrolling viewport */}
+      <div ref={viewportRef} style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <div ref={listRef} style={{ transform: `translateY(${-offset}px)`, willChange: 'transform' }}>
+          {events.map((event, i) => (
+            <EventRow key={event.id} event={event} theme={theme} isLast={i === events.length - 1} />
+          ))}
+        </div>
+        {/* Soft edges so rows don't hard-clip while scrolling */}
+        {canScroll && (
+          <>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 18, background: `linear-gradient(rgba(${fadeColor},${offset > 2 ? 0.95 : 0}), rgba(${fadeColor},0))`, pointerEvents: 'none', transition: 'opacity .4s' }} />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 26, background: `linear-gradient(rgba(${fadeColor},0), rgba(${fadeColor},0.95))`, pointerEvents: 'none' }} />
+          </>
+        )}
+      </div>
 
-      <div style={{ marginTop: 'auto', fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.dim, letterSpacing: '.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.dim, letterSpacing: '.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {footer}
       </div>
     </div>

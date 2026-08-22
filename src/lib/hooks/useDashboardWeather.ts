@@ -8,6 +8,14 @@ export interface HourlyPoint {
   icon: string;
 }
 
+export interface DailyPoint {
+  /** "Sun", "Mon" ... */
+  day: string;
+  hiF: number;
+  loF: number;
+  icon: string;
+}
+
 export interface DashboardWeather {
   tempF: number;
   condition: string;
@@ -17,6 +25,8 @@ export interface DashboardWeather {
   windDir: string;
   icon: string;
   hourly: HourlyPoint[];
+  /** The next three days after today */
+  daily: DailyPoint[];
   isFallback: boolean;
 }
 
@@ -35,7 +45,11 @@ export function useDashboardWeather() {
         if (json.error) throw new Error(json.details || 'weather error');
         if (cancelled) return;
 
-        const today = json.forecast?.[0];
+        const forecast: any[] = Array.isArray(json.forecast) ? json.forecast : [];
+        const todayName = new Date().toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/Los_Angeles' });
+        const today = forecast[0];
+        // forecast[0] is usually today; late in the evening OWM's list may start tomorrow.
+        const upcoming = forecast[0]?.day === todayName ? forecast.slice(1, 4) : forecast.slice(0, 3);
         setWeather({
           tempF: json.current?.temp ?? 55,
           condition: json.current?.condition ?? 'Clear',
@@ -48,6 +62,12 @@ export function useDashboardWeather() {
             { label: 'NOW', tempF: json.current?.temp ?? 55, icon: json.current?.icon ?? 'sun' },
             ...(json.hourly || []),
           ],
+          daily: upcoming.map((d: any) => ({
+            day: String(d.day || ''),
+            hiF: Math.round(d.temp?.max ?? 0),
+            loF: Math.round(d.temp?.min ?? 0),
+            icon: d.icon || 'sun',
+          })),
           isFallback: !json.isReliable,
         });
       } catch (err) {
