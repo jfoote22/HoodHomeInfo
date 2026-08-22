@@ -11,7 +11,7 @@ const TEAMS = {
 } as const;
 type TeamKey = keyof typeof TEAMS;
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 10 * 60 * 1000;
 const LIVE_TTL_MS = 60 * 1000;
 const FETCH_TIMEOUT_MS = 15000;
 const TZ = 'America/Los_Angeles';
@@ -60,16 +60,45 @@ export interface SportsPayload {
 
 const cache = new Map<TeamKey, { at: number; payload: SportsPayload }>();
 
-async function getJson(url: string): Promise<any> {
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { cache: 'no-store', signal: controller.signal, headers: { 'User-Agent': 'HoodCanalMarineDashboard/1.0' } });
-    if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
-    return await res.json();
-  } finally {
-    clearTimeout(t);
+// ESPN's edge WAF is picky about request fingerprints (it 403s some User-Agents and some
+// cloud egress IPs - Vercel's included - while a plain curl-style request sails through).
+// Try a few header profiles and both API hostnames; first 200 wins. Failures are recorded
+// so /api/sports?team=x&debug=1 can show what happened from the deployed region.
+const HOSTS = ['site.api.espn.com', 'site.web.api.espn.com'];
+const HEADER_PROFILES: Record<string, string>[] = [
+  { 'User-Agent': 'curl/8.7.1', Accept: '*/*' },
+  { 'User-Agent': 'curl/8.7.1', Accept: '*/*', Referer: 'https://www.espn.com/' },
+  { 'User-Agent': 'HoodCanalMarineDashboard/1.0 (+https://github.com/jfoote22/HoodHomeInfo)', Accept: 'application/json' },
+  { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36', Accept: 'application/json, text/plain, */*', Referer: 'https://www.espn.com/', Origin: 'https://www.espn.com' },
+];
+const attemptLog: string[] = [];
+
+async function getJson(path: string): Promise<any> {
+  let lastErr: Error = new Error('no attempts');
+  for (const host of HOSTS) {
+    for (const headers of HEADER_PROFILES) {
+      const url = `https://${host}${path}`;
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      try {
+        const res = await fetch(url, { cache: 'no-store', signal: controller.signal, headers });
+        if (res.ok) {
+          attemptLog.push(`OK ${host} ua=${headers['User-Agent'].split(' ')[0]} ${path}`);
+          return await res.json();
+        }
+        lastErr = new Error(`HTTP ${res.status} ${url}`);
+        attemptLog.push(`${res.status} ${host} ua=${headers['User-Agent'].split(' ')[0]} ${path}`);
+        // 404 means the path is wrong for every profile - don't keep hammering.
+        if (res.status === 404) break;
+      } catch (err) {
+        lastErr = err as Error;
+        attemptLog.push(`ERR ${host} ${String(err).slice(0, 60)} ${path}`);
+      } finally {
+        clearTimeout(t);
+      }
+    }
   }
+  throw lastErr;
 }
 
 const MOVE_RE = /\b(trade[sd]?|trading|acquir\w*|sign(?:s|ed|ing)?|re-sign\w*|releas\w*|waive[sd]?|claim(?:s|ed)?|call(?:s|ed)? up|option(?:s|ed)?|designat\w*|DFA|injured reserve|\bIR\b|activat\w*|promot\w*|extension|contract|cut[s]?\b|roster move|waivers?|deal\b|agree\w*|swap)/i;
@@ -116,7 +145,7 @@ function summarizeEvent(ev: any, ourAbbrev: string, seasonTypeName: string): Gam
 
 async function buildPayload(key: TeamKey): Promise<SportsPayload> {
   const t = TEAMS[key];
-  const base = `https://site.api.espn.com/apis/site/v2/sports/${t.sport}/${t.league}`;
+  const base = `/apis/site/v2/sports/${t.sport}/${t.league}`;
 
   const [teamJson, newsJson, ...schedules] = await Promise.all([
     getJson(`${base}/teams/${t.abbrev}`),
@@ -188,14 +217,16 @@ export async function GET(request: Request) {
   if (hit && Date.now() - hit.at < ttl && searchParams.get('refresh') !== '1') {
     return NextResponse.json({ ...hit.payload, cached: true });
   }
+  const debug = searchParams.get('debug') === '1';
+  attemptLog.length = 0;
   try {
     const payload = await buildPayload(key);
     cache.set(key, { at: Date.now(), payload });
-    return NextResponse.json(payload);
+    return NextResponse.json(debug ? { ...payload, attempts: [...attemptLog] } : payload);
   } catch (err) {
-    console.error(`sports/${key} failed:`, err);
-    if (hit) return NextResponse.json({ ...hit.payload, cached: true, stale: true });
-    return NextResponse.json({ error: 'Failed to fetch team data', details: String(err) }, { status: 502 });
+    console.error(`sports/${key} failed:`, err, attemptLog);
+    if (hit) return NextResponse.json({ ...hit.payload, cached: true, stale: true, ...(debug ? { attempts: [...attemptLog] } : {}) });
+    return NextResponse.json({ error: 'Failed to fetch team data', details: String(err), attempts: [...attemptLog] }, { status: 502 });
   }
 }
 
