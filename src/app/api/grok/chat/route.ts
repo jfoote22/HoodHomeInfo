@@ -13,7 +13,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const { messages } = await req.json();
+    const { messages, context } = await req.json();
+    const liveContext = typeof context === "string" && context.trim() ? context.trim() : null;
     
     // Convert messages to Grok format
     const grokMessages = messages.filter((msg: any) => msg.role !== 'system').map((msg: any) => ({
@@ -51,7 +52,15 @@ export async function POST(req: Request) {
         
         Be conversational, friendly, and concise. If you don't have specific information, acknowledge that and suggest how the user might get that information.
         
-        For tides specifically, Hood Canal's tides are influenced by Puget Sound and the Pacific Ocean, with two high tides and two low tides typically occurring each day.`;
+        For tides specifically, Hood Canal's tides are influenced by Puget Sound and the Pacific Ocean, with two high tides and two low tides typically occurring each day.
+
+        You are being shown on a wall-mounted TV dashboard in a home in Union, WA. Keep answers to 1-3 short sentences so they fit on screen.`;
+    const groundedSystem = liveContext
+      ? `${systemContent}
+
+LIVE CONDITIONS RIGHT NOW (from the dashboard's weather, NOAA tide, and whale-sighting feeds - treat as ground truth):
+${liveContext}`
+      : systemContent;
 
     // Enhanced reliability for Grok API with retries
     let data;
@@ -70,7 +79,7 @@ export async function POST(req: Request) {
             messages: [
               {
                 role: "system",
-                content: systemContent
+                content: groundedSystem
               },
               ...grokMessages
             ],

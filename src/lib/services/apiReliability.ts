@@ -228,7 +228,7 @@ class APIReliabilityService {
    * Fallback data generators
    */
   private generateFallbackTideData(stationId: string, days: number) {
-    const predictions = [];
+    const predictions: { t: string; v: string; type: string }[] = [];
     const baseTime = new Date();
     baseTime.setHours(0, 0, 0, 0);
     

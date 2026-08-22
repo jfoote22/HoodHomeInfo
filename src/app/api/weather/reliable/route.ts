@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { dayKey, hourLabel, DASHBOARD_TZ } from '../../../../lib/time';
 
 async function reliableFetch(url: string, options: RequestInit = {}, maxRetries = 3) {
   let lastError: Error = new Error('Unknown error');
@@ -64,6 +65,7 @@ function generateFallbackWeatherData() {
     },
     forecast: {
       list: Array.from({ length: 15 }, (_, i) => ({
+        dt: Math.floor((Date.now() + i * 8 * 60 * 60 * 1000) / 1000),
         dt_txt: new Date(Date.now() + i * 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19),
         main: {
           temp_min: 45 + ((dayOfYear + i) % 15),
@@ -81,8 +83,8 @@ function generateFallbackWeatherData() {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const lat = searchParams.get('lat') || process.env.NEXT_PUBLIC_LOCATION_LAT || '47.6255';
-    const lon = searchParams.get('lon') || process.env.NEXT_PUBLIC_LOCATION_LON || '-122.9289';
+    const lat = searchParams.get('lat') || process.env.DASHBOARD_LAT || '47.3583';
+    const lon = searchParams.get('lon') || process.env.DASHBOARD_LON || '-123.0953';
 
     console.log(`Fetching reliable weather data for coordinates ${lat}, ${lon}`);
     
@@ -111,7 +113,7 @@ export async function GET(request: Request) {
     // Transform current weather data
     const current = weatherData.current ? {
       temp: Math.round(weatherData.current.main?.temp || 55),
-      condition: weatherData.current.weather?.[0]?.main || 'Clear',
+      condition: describeCondition(weatherData.current.weather?.[0]?.id ?? 800, weatherData.current.weather?.[0]?.main),
       humidity: weatherData.current.main?.humidity || 65,
       windSpeed: Math.round(weatherData.current.wind?.speed || 5),
       windDirection: getWindDirection(weatherData.current.wind?.deg || 0),
@@ -132,20 +134,24 @@ export async function GET(request: Request) {
 
     // Near-term hourly strip (OpenWeatherMap's free forecast tier is 3-hour resolution,
     // so these are real forecast points at their actual times, not fabricated hourly data).
-    const hourly = (weatherData.forecast?.list || []).slice(0, 4).map((item: any) => {
-      const dt = item.dt_txt ? new Date(item.dt_txt.replace(' ', 'T')) : new Date();
-      return {
-        label: dt.toLocaleTimeString('en-US', { hour: 'numeric' }).replace(/\s/g, '').toUpperCase(),
-        tempF: Math.round(item.main?.temp_max ?? item.main?.temp ?? current.temp),
-        icon: mapWeatherToIcon(item.weather?.[0]?.id ?? 800)
-      };
-    });
+    // item.dt is unix UTC; dt_txt is ALSO UTC (not local), so never parse dt_txt naively.
+    const hourly = (weatherData.forecast?.list || [])
+      .filter((item: any) => (item.dt ? item.dt * 1000 : 0) > Date.now() - 90 * 60 * 1000)
+      .slice(0, 4)
+      .map((item: any) => {
+        const dt = new Date((item.dt || 0) * 1000);
+        return {
+          label: hourLabel(dt),
+          tempF: Math.round(item.main?.temp ?? item.main?.temp_max ?? current.temp),
+          icon: mapWeatherToIcon(item.weather?.[0]?.id ?? 800)
+        };
+      });
 
     const response = {
       current,
       forecast,
       hourly,
-      location: 'Hood Canal, WA',
+      location: 'Union, WA',
       isReliable: true,
       lastUpdated: new Date().toISOString()
     };
@@ -171,14 +177,29 @@ function getWindDirection(degrees: number): string {
   return directions[Math.round(degrees / 45) % 8];
 }
 
+function describeCondition(weatherId: number, main?: string): string {
+  if (weatherId >= 200 && weatherId < 300) return 'Thunderstorms';
+  if (weatherId >= 300 && weatherId < 400) return 'Drizzle';
+  if (weatherId >= 500 && weatherId < 600) return weatherId === 500 ? 'Light Rain' : 'Rain';
+  if (weatherId >= 600 && weatherId < 700) return 'Snow';
+  if (weatherId === 741) return 'Fog';
+  if (weatherId >= 700 && weatherId < 800) return 'Hazy';
+  if (weatherId === 800) return 'Sunny';
+  if (weatherId === 801) return 'Mostly Sunny';
+  if (weatherId === 802) return 'Partly Cloudy';
+  if (weatherId === 803) return 'Mostly Cloudy';
+  if (weatherId === 804) return 'Overcast';
+  return main || 'Clear';
+}
+
 function mapWeatherToIcon(weatherId: number): string {
   if (weatherId >= 200 && weatherId < 300) return 'cloud-lightning';
   if (weatherId >= 300 && weatherId < 400) return 'cloud-rain';
   if (weatherId >= 500 && weatherId < 600) return 'cloud-rain';
   if (weatherId >= 600 && weatherId < 700) return 'cloud-snow';
   if (weatherId >= 700 && weatherId < 800) return 'cloud-fog';
-  if (weatherId === 800) return 'sun';
-  if (weatherId > 800) return 'cloud';
+  if (weatherId === 800 || weatherId === 801) return 'sun';
+  if (weatherId > 801) return 'cloud';
   return 'sun';
 }
 
@@ -186,12 +207,12 @@ function processForecastData(forecastList: any[]): any[] {
   const dailyData = new Map();
   
   forecastList.forEach(item => {
-    const date = new Date(item.dt_txt);
-    const day = date.toDateString();
+    const date = new Date((item.dt || 0) * 1000);
+    const day = dayKey(date);
     
     if (!dailyData.has(day)) {
       dailyData.set(day, {
-        day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        day: date.toLocaleDateString('en-US', { weekday: 'short', timeZone: DASHBOARD_TZ }),
         temp: { min: item.main.temp_min, max: item.main.temp_max },
         condition: item.weather[0].main,
         icon: mapWeatherToIcon(item.weather[0].id),

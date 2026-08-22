@@ -2,12 +2,10 @@
 
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { WeatherIcon } from './weatherIcons';
-import { useDashboardWeather } from '../../lib/hooks/useDashboardWeather';
-import { useTideCurve } from '../../lib/hooks/useTideCurve';
+import { useDashboardData } from './DashboardDataContext';
 
 export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) {
-  const { weather } = useDashboardWeather();
-  const { data: tide } = useTideCurve();
+  const { weather, tide } = useDashboardData();
 
   return (
     <div

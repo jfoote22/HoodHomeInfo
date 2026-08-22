@@ -1,18 +1,37 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from 'ai/react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
-
-const DEFAULT_RESPONSE =
-  '"J-Pod is active in Hood Canal this afternoon — best viewing near the Great Bend around the 2:18 high tide."';
+import { useDashboardData, buildBriefing } from './DashboardDataContext';
 
 export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+  const data = useDashboardData();
+
+  // Live conditions summary: shown while idle and sent with every question so the
+  // model answers from real weather / NOAA tide / sighting data instead of guessing.
+  const briefing = useMemo(() => buildBriefing(data), [data]);
+  const briefingRef = useRef(briefing);
+  briefingRef.current = briefing;
+
+  const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
     api: '/api/grok/chat',
     initialMessages: [],
+    body: { context: briefing },
   });
+
+  // After an answer has been on screen for a while, drift back to the live briefing so
+  // the wall display never shows a stale one-off answer all day.
+  const [showAnswer, setShowAnswer] = useState(false);
+  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+  const lastAssistantId = lastAssistant?.id;
+  useEffect(() => {
+    if (!lastAssistantId) return;
+    setShowAnswer(true);
+    const t = setTimeout(() => setShowAnswer(false), 5 * 60 * 1000);
+    return () => clearTimeout(t);
+  }, [lastAssistantId]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -25,9 +44,12 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
-  const responseText = lastAssistant ? lastAssistant.content : DEFAULT_RESPONSE;
-  const statusLabel = isLoading ? 'Thinking' : 'Idle';
+  const showingLive = !(showAnswer && lastAssistant);
+  const responseText = showingLive
+    ? briefing || 'Gathering live conditions for Union, WA…'
+    : lastAssistant!.content;
+  const cardLabel = showingLive ? 'Live briefing' : 'Last response';
+  const statusLabel = isLoading ? 'Thinking' : error ? 'Offline' : 'Idle';
 
   return (
     <div
@@ -69,7 +91,7 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
               width: 7,
               height: 7,
               borderRadius: '50%',
-              background: isLoading ? theme.accentA : theme.muted,
+              background: isLoading ? theme.accentA : error ? theme.accentB : theme.muted,
               animation: isLoading ? 'dashboardBreathe 1.2s ease-in-out infinite' : undefined,
             }}
           />
@@ -77,7 +99,7 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
         </span>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, minHeight: 0 }}>
         <div style={{ position: 'relative', width: 200, height: 200, display: 'grid', placeItems: 'center' }}>
           <div
             style={{
@@ -86,7 +108,7 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
               borderRadius: '50%',
               background: `radial-gradient(circle at 50% 45%, ${theme.accentA}80, ${theme.accentA}00 70%)`,
               filter: 'blur(8px)',
-              animation: 'dashboardBreathe 4.5s ease-in-out infinite',
+              animation: `dashboardBreathe ${isLoading ? '1.4s' : '4.5s'} ease-in-out infinite`,
             }}
           />
           <div
@@ -97,7 +119,7 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
               background: `conic-gradient(from 130deg, ${theme.accentA}, #0ea5e9, ${theme.accentB}, ${theme.accentA})`,
               opacity: 0.9,
               filter: 'blur(1px)',
-              animation: 'dashboardBreathe 4.5s ease-in-out infinite',
+              animation: `dashboardBreathe ${isLoading ? '1.4s' : '4.5s'} ease-in-out infinite`,
             }}
           />
           <div style={{ position: 'absolute', width: 80, height: 80, borderRadius: '50%', background: theme.isLight ? '#ffffff' : theme.panelBg }} />
@@ -114,10 +136,12 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
           border: `1px solid ${theme.accentA}38`,
           borderRadius: 16,
           padding: '16px 18px',
+          maxHeight: 190,
+          overflow: 'hidden',
         }}
       >
         <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, letterSpacing: '.18em', color: theme.accentA, textTransform: 'uppercase', marginBottom: 8 }}>
-          Last response
+          {cardLabel}
         </div>
         <p style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: theme.bodySecondary }}>{responseText}</p>
       </div>
@@ -164,6 +188,7 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
             background: 'transparent',
             border: 'none',
             outline: 'none',
+            minWidth: 0,
           }}
         />
         <span

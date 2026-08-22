@@ -43,7 +43,7 @@ async function testAPI(url: string, name: string, timeout: number = 10000) {
 export async function GET() {
   try {
     const baseUrl = process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:3008' 
+      ? 'http://localhost:3000' 
       : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
     // Test all Hood Canal APIs
@@ -91,7 +91,7 @@ export async function GET() {
         api.hasData && 
         externalTests.some(ext => ext.name.includes(api.name.split(' ')[0]) && ext.status !== 'healthy')
       ),
-      recommendations: []
+      recommendations: [] as string[]
     };
 
     // Add recommendations based on status

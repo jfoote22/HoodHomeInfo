@@ -23,6 +23,14 @@ export function DashboardThemeProvider({ children }: { children: ReactNode }) {
   const [themeId, setThemeIdState] = useState<ThemeId>('command-center');
 
   useEffect(() => {
+    // URL param lets the TV kiosk URL pin a theme (e.g. /?theme=daylight-glass);
+    // otherwise fall back to whatever was last toggled on this device.
+    const fromUrl = new URLSearchParams(window.location.search).get('theme') as ThemeId | null;
+    if (fromUrl && THEMES[fromUrl]) {
+      setThemeIdState(fromUrl);
+      window.localStorage.setItem(STORAGE_KEY, fromUrl);
+      return;
+    }
     const stored = window.localStorage.getItem(STORAGE_KEY) as ThemeId | null;
     if (stored && THEMES[stored]) {
       setThemeIdState(stored);

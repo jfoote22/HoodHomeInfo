@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { localToDate, fmtTime, fmtDate, DASHBOARD_TZ } from '../../../../lib/time';
 
 async function reliableFetch(url: string, options: RequestInit = {}, maxRetries = 3) {
   let lastError: Error = new Error('Unknown error');
@@ -35,7 +36,7 @@ async function reliableFetch(url: string, options: RequestInit = {}, maxRetries 
 }
 
 function generateFallbackTideData(stationId: string, days: number) {
-  const predictions = [];
+  const predictions: { t: string; v: string; type: string }[] = [];
   const baseTime = new Date();
   baseTime.setHours(0, 0, 0, 0);
   
@@ -61,7 +62,7 @@ function generateFallbackTideData(stationId: string, days: number) {
       
       const tideTime = new Date(dayStart.getTime() + actualHour * 60 * 60 * 1000);
       predictions.push({
-        t: tideTime.toISOString().replace('T', ' ').slice(0, 19),
+        t: tideTime.toISOString().replace('T', ' ').slice(0, 16),
         v: tide.height.toFixed(2),
         type: tide.type
       });
@@ -75,7 +76,7 @@ function generateFallbackTideData(stationId: string, days: number) {
 }
 
 function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0].replace(/-/g, '');
+  return date.toLocaleDateString('en-CA', { timeZone: DASHBOARD_TZ }).replace(/-/g, '');
 }
 
 export async function GET(request: Request) {
@@ -94,11 +95,12 @@ export async function GET(request: Request) {
         product: 'predictions',
         application: 'NOS.COOPS.TAC.WL',
         station: stationId,
-        begin_date: formatDate(new Date()),
+        begin_date: formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000)),
         end_date: formatDate(new Date(Date.now() + days * 24 * 60 * 60 * 1000)),
         datum: 'MLLW',
         time_zone: 'lst_ldt',
         units: 'english',
+        interval: 'hilo', // only high/low extremes - the curve is interpolated client-side
         format: 'json'
       });
 
@@ -109,16 +111,21 @@ export async function GET(request: Request) {
     }
     
     // Transform data to match existing component expectations
-    const processedTides = tideData.predictions?.map((tide: any) => {
-      const tideTime = new Date(tide.t.replace(' ', 'T'));
-      return {
-        type: tide.type === 'H' ? 'High' : 'Low',
-        time: tideTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: tideTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-        height: `${parseFloat(tide.v).toFixed(2)} ft`,
-        timestamp: tideTime.getTime()
-      };
-    }) || [];
+    // NOAA lst_ldt timestamps are the station's local (Pacific) time with no offset,
+    // so parse them explicitly in the dashboard timezone regardless of server TZ.
+    const processedTides = (tideData.predictions || [])
+      .map((tide: any) => {
+        const tideTime = localToDate(String(tide.t));
+        if (!tideTime) return null;
+        return {
+          type: tide.type === 'H' ? 'High' : 'Low',
+          time: fmtTime(tideTime),
+          date: fmtDate(tideTime),
+          height: `${parseFloat(tide.v).toFixed(2)} ft`,
+          timestamp: tideTime.getTime()
+        };
+      })
+      .filter(Boolean);
 
     const response = {
       tides: processedTides,
