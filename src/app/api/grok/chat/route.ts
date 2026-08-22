@@ -3,11 +3,11 @@ export const runtime = "edge";
 export async function POST(req: Request) {
   try {
     // Check if API key is available
-    const apiKey = process.env.GROK_API;
-    if (!apiKey || apiKey === "your_grok_api_key") {
+    const apiKey = (process.env.GROK_API || process.env.GROK_API_KEY || process.env.XAI_API_KEY || "").trim();
+    if (!apiKey || /^your_/i.test(apiKey)) {
       return new Response(
         JSON.stringify({
-          error: "Missing Grok API key. Please add your key to .env.local as GROK_API."
+          error: "Missing Grok API key. Set GROK_API (locally in .env.local; on Vercel: Settings > Environment Variables, Production, then redeploy). See /api/status/env for which keys this deployment can see."
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
