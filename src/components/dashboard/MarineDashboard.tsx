@@ -37,7 +37,7 @@ export default function MarineDashboard() {
             position: 'relative',
           }}
         >
-          <AIVoiceAgentPanel theme={theme} />
+          <LocalEventsPanel theme={theme} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22, minHeight: 0, minWidth: 0 }}>
             <div style={{ flex: 2, minHeight: 0 }}>
               <MarineMapPanel theme={theme} />
@@ -49,7 +49,7 @@ export default function MarineDashboard() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22, minHeight: 0 }}>
             <WeatherTidesPanel theme={theme} />
-            <LocalEventsPanel theme={theme} />
+            <AIVoiceAgentPanel theme={theme} compact />
           </div>
 
           <button

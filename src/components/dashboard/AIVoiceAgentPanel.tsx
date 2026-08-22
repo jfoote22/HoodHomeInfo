@@ -5,7 +5,12 @@ import { useChat } from 'ai/react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { useDashboardData, buildBriefing } from './DashboardDataContext';
 
-export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) {
+export default function AIVoiceAgentPanel({ theme, compact = false }: { theme: DashboardTheme; compact?: boolean }) {
+  // compact: bottom-right slot (~428x490) instead of the full-height left column.
+  const orb = compact ? 118 : 200;
+  const orbDisc = compact ? 76 : 128;
+  const orbCore = compact ? 48 : 80;
+  const orbRing = compact ? 98 : 166;
   const inputRef = useRef<HTMLInputElement>(null);
   const data = useDashboardData();
 
@@ -60,13 +65,14 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
         border: `1px solid ${theme.panelBorder}`,
         borderRadius: 22,
         boxShadow: theme.panelShadow,
-        padding: 26,
+        padding: compact ? 20 : 26,
         display: 'flex',
         flexDirection: 'column',
-        gap: 20,
-        height: '100%',
+        gap: compact ? 12 : 20,
+        ...(compact ? { flex: 0.95, minHeight: 0 } : { height: '100%' }),
         boxSizing: 'border-box',
         fontFamily: FONT_FAMILIES.body,
+        overflow: 'hidden',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -99,8 +105,8 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
         </span>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, minHeight: 0 }}>
-        <div style={{ position: 'relative', width: 200, height: 200, display: 'grid', placeItems: 'center' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: compact ? 16 : 22, minHeight: 0 }}>
+        <div style={{ position: 'relative', width: orb, height: orb, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
           <div
             style={{
               position: 'absolute',
@@ -113,8 +119,8 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
           />
           <div
             style={{
-              width: 128,
-              height: 128,
+              width: orbDisc,
+              height: orbDisc,
               borderRadius: '50%',
               background: `conic-gradient(from 130deg, ${theme.accentA}, #0ea5e9, ${theme.accentB}, ${theme.accentA})`,
               opacity: 0.9,
@@ -122,30 +128,55 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
               animation: `dashboardBreathe ${isLoading ? '1.4s' : '4.5s'} ease-in-out infinite`,
             }}
           />
-          <div style={{ position: 'absolute', width: 80, height: 80, borderRadius: '50%', background: theme.isLight ? '#ffffff' : theme.panelBg }} />
-          <div style={{ position: 'absolute', width: 166, height: 166, borderRadius: '50%', border: `1px solid ${theme.accentA}4d` }} />
+          <div style={{ position: 'absolute', width: orbCore, height: orbCore, borderRadius: '50%', background: theme.isLight ? '#ffffff' : theme.panelBg }} />
+          <div style={{ position: 'absolute', width: orbRing, height: orbRing, borderRadius: '50%', border: `1px solid ${theme.accentA}4d` }} />
         </div>
-        <div style={{ textAlign: 'center', fontFamily: FONT_FAMILIES.mono, fontSize: 13, color: theme.muted, letterSpacing: '.06em' }}>
-          Ambient · say <span style={{ color: theme.accentA }}>&ldquo;Hey Sound&rdquo;</span>
-        </div>
+        {!compact && (
+          <div style={{ textAlign: 'center', fontFamily: FONT_FAMILIES.mono, fontSize: 13, color: theme.muted, letterSpacing: '.06em' }}>
+            Ambient · say <span style={{ color: theme.accentA }}>&ldquo;Hey Sound&rdquo;</span>
+          </div>
+        )}
+        {compact && (
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              minHeight: 0,
+              alignSelf: 'stretch',
+              background: theme.isLight ? `${theme.accentA}14` : `${theme.accentA}0f`,
+              border: `1px solid ${theme.accentA}38`,
+              borderRadius: 16,
+              padding: '12px 14px',
+              overflowY: 'auto',
+              scrollbarWidth: 'none',
+            }}
+          >
+            <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 10, letterSpacing: '.18em', color: theme.accentA, textTransform: 'uppercase', marginBottom: 6 }}>
+              {cardLabel}
+            </div>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.45, color: theme.bodySecondary, whiteSpace: 'pre-line' }}>{responseText}</p>
+          </div>
+        )}
       </div>
 
-      <div
-        style={{
-          background: theme.isLight ? `${theme.accentA}14` : `${theme.accentA}0f`,
-          border: `1px solid ${theme.accentA}38`,
-          borderRadius: 16,
-          padding: '16px 18px',
-          maxHeight: 340,
-          overflowY: 'auto',
-          scrollbarWidth: 'none',
-        }}
-      >
-        <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, letterSpacing: '.18em', color: theme.accentA, textTransform: 'uppercase', marginBottom: 8 }}>
-          {cardLabel}
+      {!compact && (
+        <div
+          style={{
+            background: theme.isLight ? `${theme.accentA}14` : `${theme.accentA}0f`,
+            border: `1px solid ${theme.accentA}38`,
+            borderRadius: 16,
+            padding: '16px 18px',
+            maxHeight: 340,
+            overflowY: 'auto',
+            scrollbarWidth: 'none',
+          }}
+        >
+          <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, letterSpacing: '.18em', color: theme.accentA, textTransform: 'uppercase', marginBottom: 8 }}>
+            {cardLabel}
+          </div>
+          <p style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: theme.bodySecondary, whiteSpace: 'pre-line' }}>{responseText}</p>
         </div>
-        <p style={{ margin: 0, fontSize: 16, lineHeight: 1.5, color: theme.bodySecondary, whiteSpace: 'pre-line' }}>{responseText}</p>
-      </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -156,7 +187,7 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
           background: theme.commandBarBg,
           border: `1px solid ${theme.commandBarBorder}`,
           borderRadius: 999,
-          padding: '11px 14px',
+          padding: compact ? '8px 12px' : '11px 14px',
           boxShadow: theme.commandBarShadow,
         }}
       >
@@ -206,8 +237,8 @@ export default function AIVoiceAgentPanel({ theme }: { theme: DashboardTheme }) 
         </span>
       </form>
 
-      <div style={{ textAlign: 'center', fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.dim, letterSpacing: '.04em' }}>
-        Press ● on remote or say the wake word
+      <div style={{ textAlign: 'center', fontFamily: FONT_FAMILIES.mono, fontSize: compact ? 10 : 11, color: theme.dim, letterSpacing: '.04em' }}>
+        {compact ? <>Say <span style={{ color: theme.accentA }}>&ldquo;Hey Sound&rdquo;</span> · press ● on remote · ⌘K to type</> : 'Press ● on remote or say the wake word'}
       </div>
     </div>
   );
