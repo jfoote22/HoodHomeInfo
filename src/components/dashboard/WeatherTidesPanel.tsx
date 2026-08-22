@@ -3,9 +3,10 @@
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { WeatherIcon } from './weatherIcons';
 import { useDashboardData } from './DashboardDataContext';
+import MoonPhaseBadge from './MoonPhaseBadge';
 
 export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) {
-  const { weather, tide } = useDashboardData();
+  const { weather, tide, now } = useDashboardData();
   const hairline = theme.isLight ? 'rgba(20,34,47,.08)' : 'rgba(255,255,255,.06)';
   const viewW = tide?.viewW ?? 380;
   const viewH = tide?.viewH ?? 120;
@@ -37,13 +38,14 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
 
       {/* Today - the hero */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
           <WeatherIcon icon={weather?.icon || 'sun'} size={52} theme={theme} />
           <span style={{ fontFamily: FONT_FAMILIES.display, fontWeight: 700, fontSize: 74, lineHeight: 0.8, color: theme.text }}>
             {weather ? Math.round(weather.tempF) : '--'}°
           </span>
         </div>
-        <div style={{ textAlign: 'right' }}>
+        <MoonPhaseBadge theme={theme} now={now} />
+        <div style={{ textAlign: 'right', whiteSpace: 'nowrap', flexShrink: 0 }}>
           <div style={{ fontSize: 17, color: theme.bodySecondary, fontWeight: 600 }}>{weather?.condition || '—'}</div>
           <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 13, color: theme.muted }}>
             H {weather ? Math.round(weather.hiF) : '--'}° · L {weather ? Math.round(weather.loF) : '--'}°
