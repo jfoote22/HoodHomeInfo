@@ -39,6 +39,7 @@ npm start                           # http://localhost:3000
 | `NEXT_PUBLIC_NOAA_STATION_ID` | no | defaults to `9445478` (Union, Hood Canal) |
 | `DASHBOARD_LAT` / `DASHBOARD_LON` | no | weather point; defaults to Union, WA `47.3583, -123.0953` |
 | `HERMES_EVENTS_URL` | recommended | Hermes "Local WA Events" page, e.g. `http://192.168.40.77:8788/` on the LAN. The Vercel deployment can't reach a LAN address — expose it with a tunnel (`cloudflared tunnel --url http://localhost:8788` on the Mac gives a public https URL) and set that in Vercel |
+| `HERMES_PUSH_SECRET` | recommended | shared secret for `POST /api/hermes/events` (Hermes pushes its events here; see `docs/HERMES-HANDOFF.md`). On Vercel also create a Blob store on the project (Storage → Create → Blob) so pushed documents persist |
 | `HERMES_EVENTS_PATH` | no | path to a JSON file of extra events (see `data/hermes-events.example.json`) |
 
 Whale sightings, tides, map tiles, and the chamber/Explore Hood Canal event feeds need **no keys**.

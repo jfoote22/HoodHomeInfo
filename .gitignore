@@ -39,3 +39,5 @@ next-env.d.ts
 
 # Hermes-generated live events data (machine-local, changes daily)
 /data/hermes-events.json
+/data/hermes-events.html
+/data/hermes-events.meta.json

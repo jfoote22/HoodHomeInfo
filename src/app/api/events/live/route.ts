@@ -3,13 +3,16 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import * as cheerio from 'cheerio';
 import { localToDate, fmtTime, fmtDate, DASHBOARD_TZ } from '../../../../lib/time';
+import { loadHermesDocument } from '../../../../lib/hermesStore';
 
 // Local events aggregator for the Union / Hood Canal dashboard.
 //
 // Sources, merged and sorted by start time:
-//   1. Hermes - the user's local agent: an HTML page served on the LAN (HERMES_EVENTS_URL,
-//      e.g. http://192.168.40.77:8788/) and/or a JSON file (data/hermes-events.json). Preferred
-//      source: its entries win when the same event also appears in a public feed.
+//   1. Hermes - the user's local agent. Preferred source; its entries win when the same event
+//      also appears in a public feed. Three ways it can reach us, tried in this order:
+//        a) the document Hermes POSTs to /api/hermes/events (stored in Vercel Blob, or data/ locally)
+//        b) its HTML page on the LAN (HERMES_EVENTS_URL, e.g. http://192.168.40.77:8788/)
+//        c) a JSON file on disk (HERMES_EVENTS_PATH, default data/hermes-events.json)
 //   2. North Mason Chamber of Commerce (GrowthZone/ChamberMaster calendar) - Union, Belfair,
 //      Allyn, Alderbrook, McReavy House, etc. Parsed from the public events listing HTML.
 //   3. Explore Hood Canal (Squarespace events collection) - regional festivals.
@@ -168,39 +171,40 @@ function expandHermesDates(text: string, defaultYear: number): { start: Date; al
     .filter((x): x is { start: Date; allDay: boolean } => x !== null);
 }
 
-async function loadHermesUrl(): Promise<LiveEvent[]> {
-  if (!HERMES_EVENTS_URL) return [];
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), HERMES_TIMEOUT_MS);
-  let body = '';
-  let contentType = '';
-  try {
-    const res = await fetch(HERMES_EVENTS_URL, { cache: 'no-store', signal: controller.signal, headers: { 'User-Agent': UA } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    contentType = res.headers.get('content-type') || '';
-    body = await res.text();
-  } finally {
-    clearTimeout(timeout);
-  }
+function parseHermesJson(parsed: any): LiveEvent[] {
+  const list: any[] = Array.isArray(parsed?.events) ? parsed.events : [];
+  return list
+    .map((e: any): LiveEvent | null => {
+      if (!e || !e.title) return null;
+      // Preferred: ISO 8601 "start" (with offset). Fallback: human "date" + "time" strings.
+      let start: Date | null = null;
+      if (e.start) {
+        const d = new Date(e.start);
+        start = Number.isNaN(d.getTime()) ? null : d;
+      }
+      if (!start && e.date) start = parseHumanDate(String(e.date), e.time ? String(e.time) : undefined);
+      if (!start) return null;
+      const end = e.end ? new Date(e.end) : null;
+      const venue = e.venue || e.location || null;
+      return toLegacy({
+        id: `hermes-${e.id || `${String(e.title).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${start.toISOString().slice(0, 10)}`}`,
+        title: String(e.title).trim(),
+        start: start.toISOString(),
+        end: end && !Number.isNaN(end.getTime()) ? end.toISOString() : null,
+        allDay: Boolean(e.allDay) || (!e.start && !e.time),
+        venue,
+        city: e.city || null,
+        imageUrl: e.imageUrl || e.image || null,
+        url: e.url || e.link || null,
+        category: e.category || null,
+        source: 'hermes',
+      });
+    })
+    .filter((e: LiveEvent | null): e is LiveEvent => e !== null);
+}
 
-  // JSON variant: same shape as the Hermes file.
-  if (/json/i.test(contentType) || body.trim().startsWith('{')) {
-    try {
-      const parsed = JSON.parse(body);
-      const list: any[] = Array.isArray(parsed.events) ? parsed.events : [];
-      return list
-        .map((e: any): LiveEvent | null => {
-          const start = e.start ? new Date(e.start) : parseHumanDate(e.date, e.time);
-          if (!start || Number.isNaN(start.getTime())) return null;
-          return toLegacy({ id: `hermes-${e.id || e.title}`, title: String(e.title), start: start.toISOString(), end: null, allDay: !e.time, venue: e.location || null, city: e.city || null, imageUrl: e.imageUrl || null, url: e.url || null, category: e.category || null, source: 'hermes' });
-        })
-        .filter((e: LiveEvent | null): e is LiveEvent => e !== null);
-    } catch {
-      return [];
-    }
-  }
-
-  // HTML variant: <section class="city"><h2>City</h2><h3>Category</h3><article class="event"><pre>...</pre></article>
+function parseHermesHtml(body: string): LiveEvent[] {
+  // <section class="city"><h2>City</h2><h3>Category</h3><article class="event"><pre>...</pre></article>
   const $ = cheerio.load(body);
   const year = hermesYear(body);
   const out: LiveEvent[] = [];
@@ -246,6 +250,45 @@ async function loadHermesUrl(): Promise<LiveEvent[]> {
     });
   });
   return out;
+}
+
+// 1a) Document pushed by Hermes to POST /api/hermes/events
+async function loadHermesPushed(): Promise<LiveEvent[]> {
+  const doc = await loadHermesDocument();
+  if (!doc) return [];
+  if (doc.kind === 'json') {
+    try {
+      return parseHermesJson(JSON.parse(doc.body));
+    } catch {
+      return [];
+    }
+  }
+  return parseHermesHtml(doc.body);
+}
+
+// 1b) Hermes HTML (or JSON) page fetched over the LAN
+async function loadHermesUrl(): Promise<LiveEvent[]> {
+  if (!HERMES_EVENTS_URL) return [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HERMES_TIMEOUT_MS);
+  let body = '';
+  let contentType = '';
+  try {
+    const res = await fetch(HERMES_EVENTS_URL, { cache: 'no-store', signal: controller.signal, headers: { 'User-Agent': UA } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    contentType = res.headers.get('content-type') || '';
+    body = await res.text();
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (/json/i.test(contentType) || body.trim().startsWith('{')) {
+    try {
+      return parseHermesJson(JSON.parse(body));
+    } catch {
+      return [];
+    }
+  }
+  return parseHermesHtml(body);
 }
 
 // ---------- Source 2: North Mason Chamber (GrowthZone) ----------
@@ -366,8 +409,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ ...cache.payload, cached: true });
   }
 
-  const results = await Promise.allSettled([loadHermesUrl(), loadHermes(), loadNorthMasonChamber(), loadExploreHoodCanal()]);
-  const names = ['hermes', 'hermes', 'north-mason-chamber', 'explore-hood-canal'];
+  const results = await Promise.allSettled([loadHermesPushed(), loadHermesUrl(), loadHermes(), loadNorthMasonChamber(), loadExploreHoodCanal()]);
+  const names = ['hermes', 'hermes', 'hermes', 'north-mason-chamber', 'explore-hood-canal'];
   const sources: string[] = [];
   const all: LiveEvent[] = [];
   results.forEach((r, i) => {
