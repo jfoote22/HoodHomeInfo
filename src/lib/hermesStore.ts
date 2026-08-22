@@ -2,8 +2,9 @@
 //
 // On Vercel the filesystem is read-only and every deployment is immutable, so the pushed
 // document lives in Vercel Blob (created once in the project's Storage tab; that injects
-// BLOB_READ_WRITE_TOKEN). When no Blob token is present (local dev) we fall back to a file
-// under data/ so the whole flow still works on a laptop.
+// BLOB_READ_WRITE_TOKEN). The store is PRIVATE: blobs are written and read through the SDK
+// with the token (never via a public URL). When no Blob token is present (local dev) we
+// fall back to files under data/ so the whole flow still works on a laptop.
 
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import path from 'path';
@@ -18,6 +19,10 @@ export interface HermesDocument {
   source: 'blob' | 'file';
 }
 
+// Match the store's access mode. Private is the default (and what the owner's store uses);
+// set HERMES_BLOB_ACCESS=public only if the store was created as a public one.
+const BLOB_ACCESS: 'private' | 'public' = process.env.HERMES_BLOB_ACCESS === 'public' ? 'public' : 'private';
+
 const BLOB_PREFIX = 'hermes/';
 const BLOB_PATH: Record<HermesKind, string> = { json: `${BLOB_PREFIX}events.json`, html: `${BLOB_PREFIX}events.html` };
 const LOCAL_DIR = path.join(process.cwd(), 'data');
@@ -31,11 +36,15 @@ export function blobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
+export function blobAccessMode(): 'private' | 'public' {
+  return BLOB_ACCESS;
+}
+
 export async function saveHermesDocument(kind: HermesKind, body: string): Promise<{ storage: 'blob' | 'file'; url: string | null }> {
   if (blobConfigured()) {
     const { put, del, list } = await import('@vercel/blob');
     const res = await put(BLOB_PATH[kind], body, {
-      access: 'public',
+      access: BLOB_ACCESS,
       addRandomSuffix: false,
       allowOverwrite: true,
       contentType: kind === 'json' ? 'application/json; charset=utf-8' : 'text/html; charset=utf-8',
@@ -45,7 +54,7 @@ export async function saveHermesDocument(kind: HermesKind, body: string): Promis
     const other = kind === 'json' ? 'html' : 'json';
     try {
       const existing = await list({ prefix: BLOB_PATH[other], limit: 5 });
-      await Promise.all(existing.blobs.map((b) => del(b.url)));
+      if (existing.blobs.length) await del(existing.blobs.map((b) => b.url));
     } catch {
       /* best effort */
     }
@@ -57,20 +66,33 @@ export async function saveHermesDocument(kind: HermesKind, body: string): Promis
   return { storage: 'file', url: null };
 }
 
+async function streamToString(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) chunks.push(value);
+  }
+  return Buffer.concat(chunks.map((c) => Buffer.from(c))).toString('utf-8');
+}
+
 export async function loadHermesDocument(): Promise<HermesDocument | null> {
   if (blobConfigured()) {
-    const { list } = await import('@vercel/blob');
+    const { list, get } = await import('@vercel/blob');
     const { blobs } = await list({ prefix: BLOB_PREFIX, limit: 10 });
     if (!blobs.length) return null;
     const newest = [...blobs].sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
-    const res = await fetch(`${newest.url}${newest.url.includes('?') ? '&' : '?'}t=${Date.now()}`, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`Blob fetch HTTP ${res.status}`);
-    const body = await res.text();
+    // Authenticated read (works for private and public stores); bypass CDN cache so a fresh
+    // push shows up immediately.
+    const result = await get(newest.pathname, { access: BLOB_ACCESS, useCache: false });
+    if (!result || result.statusCode !== 200 || !result.stream) throw new Error(`Blob get returned ${result ? result.statusCode : 'null'}`);
+    const body = await streamToString(result.stream);
     return {
       kind: newest.pathname.endsWith('.html') ? 'html' : 'json',
       body,
       uploadedAt: new Date(newest.uploadedAt).toISOString(),
-      bytes: newest.size,
+      bytes: result.blob.size ?? newest.size,
       source: 'blob',
     };
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { saveHermesDocument, loadHermesDocument, blobConfigured } from '../../../../lib/hermesStore';
+import { saveHermesDocument, loadHermesDocument, blobConfigured, blobAccessMode } from '../../../../lib/hermesStore';
 
 // Push endpoint for Hermes (the user's local agent on the MacBook Pro).
 //
@@ -37,6 +37,7 @@ export async function GET() {
       uploadedAt: doc?.uploadedAt ?? null,
       bytes: doc?.bytes ?? null,
       storage: blobConfigured() ? 'blob' : 'file',
+      blobAccess: blobConfigured() ? blobAccessMode() : null,
       secretConfigured: Boolean((process.env.HERMES_PUSH_SECRET || '').trim()),
     });
   } catch (err) {
