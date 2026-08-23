@@ -31,7 +31,7 @@ const EHC_JSON_URL = 'https://www.explorehoodcanal.com/events?format=json';
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const DETAIL_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const MAX_EVENTS = 20;
+const MAX_EVENTS = 60;
 const MAX_DETAIL_FETCHES = 16;
 const FETCH_TIMEOUT_MS = 15000;
 const UA = 'Mozilla/5.0 (compatible; HoodCanalMarineDashboard/1.0)';

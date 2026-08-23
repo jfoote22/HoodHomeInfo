@@ -80,6 +80,13 @@ export async function POST(req: Request) {
     if (bad >= 0) {
       return NextResponse.json({ ok: false, error: `events[${bad}] needs at least "title" and "start" (ISO 8601) or "date".` }, { status: 400 });
     }
+    if (parsed.ourEvents !== undefined && !Array.isArray(parsed.ourEvents)) {
+      return NextResponse.json({ ok: false, error: '"ourEvents" must be an array when present.' }, { status: 400 });
+    }
+    const badOurs = (parsed.ourEvents || []).findIndex((e: any) => !e || typeof e.title !== 'string' || !e.start);
+    if (badOurs >= 0) {
+      return NextResponse.json({ ok: false, error: `ourEvents[${badOurs}] needs "title" and "start" (ISO 8601).` }, { status: 400 });
+    }
     parsed.receivedAt = new Date().toISOString();
     body = JSON.stringify(parsed);
     kind = 'json';
@@ -93,7 +100,8 @@ export async function POST(req: Request) {
 
   try {
     const saved = await saveHermesDocument(kind, body);
-    return NextResponse.json({ ok: true, kind, events: eventCount, storage: saved.storage, receivedAt: new Date().toISOString() });
+    const ourCount = kind === 'json' ? (JSON.parse(body).ourEvents || []).length : 0;
+    return NextResponse.json({ ok: true, kind, events: eventCount, ourEvents: ourCount, storage: saved.storage, receivedAt: new Date().toISOString() });
   } catch (err) {
     console.error('Hermes push store failed:', err);
     return NextResponse.json({ ok: false, error: `Could not store document: ${String(err)}` }, { status: 500 });

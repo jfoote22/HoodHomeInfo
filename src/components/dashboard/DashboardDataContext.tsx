@@ -5,6 +5,7 @@ import { useDashboardWeather, DashboardWeather } from '../../lib/hooks/useDashbo
 import { useTideCurve, TideCurveData } from '../../lib/hooks/useTideCurve';
 import { useOrcaSightings, SightingsState } from '../../lib/hooks/useOrcaSightings';
 import { useDashboardEvents, EventsState } from '../../lib/hooks/useDashboardEvents';
+import { useOurEvents, OurEventsState } from '../../lib/hooks/useOurEvents';
 
 /**
  * One place that owns every live data feed for the wall display, so each panel reads
@@ -16,6 +17,8 @@ export interface DashboardData {
   tide: TideCurveData | null;
   sightings: SightingsState;
   events: EventsState;
+  /** The household calendar (bravefoote@gmail) - "Our Events" */
+  ourEvents: OurEventsState;
   /** Ticks once a minute - drives the clock and "updated N min ago" labels. */
   now: Date;
 }
@@ -27,6 +30,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const { data: tide } = useTideCurve();
   const sightings = useOrcaSightings();
   const events = useDashboardEvents();
+  const ourEvents = useOurEvents();
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -44,7 +48,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return <DashboardDataContext.Provider value={{ weather, tide, sightings, events, now }}>{children}</DashboardDataContext.Provider>;
+  return <DashboardDataContext.Provider value={{ weather, tide, sightings, events, ourEvents, now }}>{children}</DashboardDataContext.Provider>;
 }
 
 export function useDashboardData(): DashboardData {
@@ -57,7 +61,7 @@ export function useDashboardData(): DashboardData {
  *  idle "last response" and injected into chat requests as grounding context. */
 export function buildBriefing(data: DashboardData): string {
   const parts: string[] = [];
-  const { weather, tide, sightings } = data;
+  const { weather, tide, sightings, ourEvents } = data;
 
   if (weather) {
     parts.push(`It's ${Math.round(weather.tempF)}° and ${weather.condition.toLowerCase()} in Union, WA — high ${Math.round(weather.hiF)}°, low ${Math.round(weather.loF)}°, wind ${weather.windMph} mph ${weather.windDir}.`);
@@ -78,6 +82,10 @@ export function buildBriefing(data: DashboardData): string {
     } else {
       parts.push(`No whale reports in the last 24h; most recent was ${nearest.label} ${nearest.hoursAgoLabel}.`);
     }
+  }
+  const upcomingOurs = ourEvents?.events?.filter((e) => e.start.getTime() > Date.now() - 3600000).slice(0, 2) || [];
+  if (upcomingOurs.length) {
+    parts.push(`On our calendar: ${upcomingOurs.map((e) => `${e.title} (${e.dayLabel.toLowerCase()} ${e.timeLabel})`).join('; ')}.`);
   }
   return parts.join(' ');
 }

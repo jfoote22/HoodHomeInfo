@@ -58,6 +58,29 @@ Rules:
 
 If you cannot produce ISO timestamps, a legacy shape is accepted per event: `"date": "Sat Aug 29"` + `"time": "10:00 AM"` (year inferred) — but prefer `start`.
 
+## Our calendar events (bravefoote@gmail) — optional second array
+
+Alongside `events` (the public local events) you may include **`ourEvents`**: the household's own
+calendar entries for the next ~4 weeks (from the bravefoote@gmail.com Google Calendar). The dashboard
+shows them in the "Our Events" panel, highlights matching local events as GOING, and plots them on the
+calendar view.
+
+```json
+{
+  "events": [ ... ],
+  "ourEvents": [
+    { "title": "Dinner at Alderbrook", "start": "2026-08-28T18:30:00-07:00", "end": "2026-08-28T20:30:00-07:00",
+      "allDay": false, "location": "Alderbrook Resort, Union", "id": "gcal-abc123" }
+  ]
+}
+```
+
+Same field rules as `events` (`title` + ISO `start` required; `end`, `allDay`, `location`, `url`,
+`description`, `id` optional). If a calendar entry is the same thing as a local event (same day, same/similar
+title), the dashboard marks that local event as GOING automatically. Only the JSON body type can carry
+`ourEvents` (the HTML body cannot). If the owner connects the Google service account, the dashboard reads
+the calendar itself and `ourEvents` becomes a fallback — still fine to send.
+
 ## Minimal push snippets
 
 **Shell**
