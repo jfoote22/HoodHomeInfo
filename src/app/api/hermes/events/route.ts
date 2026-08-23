@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { saveHermesDocument, loadHermesDocument, blobConfigured, blobAccessMode } from '../../../../lib/hermesStore';
+import { parseHermesHtml } from '../../../../lib/hermesParse';
 
 // Push endpoint for Hermes (the user's local agent on the MacBook Pro).
 //
@@ -100,7 +101,17 @@ export async function POST(req: Request) {
 
   try {
     const saved = await saveHermesDocument(kind, body);
-    const ourCount = kind === 'json' ? (JSON.parse(body).ourEvents || []).length : 0;
+    let ourCount = 0;
+    if (kind === 'json') ourCount = (JSON.parse(body).ourEvents || []).length;
+    else {
+      try {
+        const items = parseHermesHtml(body);
+        ourCount = items.filter((i) => i.isCalendar).length;
+        eventCount = items.length - ourCount;
+      } catch {
+        /* keep the raw article count */
+      }
+    }
     return NextResponse.json({ ok: true, kind, events: eventCount, ourEvents: ourCount, storage: saved.storage, receivedAt: new Date().toISOString() });
   } catch (err) {
     console.error('Hermes push store failed:', err);

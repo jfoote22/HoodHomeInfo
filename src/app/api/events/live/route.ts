@@ -4,6 +4,7 @@ import path from 'path';
 import * as cheerio from 'cheerio';
 import { localToDate, fmtTime, fmtDate, DASHBOARD_TZ } from '../../../../lib/time';
 import { loadHermesDocument } from '../../../../lib/hermesStore';
+import { parseHermesHtml, slug } from '../../../../lib/hermesParse';
 
 // Local events aggregator for the Union / Hood Canal dashboard.
 //
@@ -121,62 +122,11 @@ function parseHumanDate(date?: string, time?: string): Date | null {
   return candidate;
 }
 
-// ---------- Source 1b: Hermes HTML page on the LAN ----------
-const DOW = '(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)';
-const MON = '(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)';
-const DATE_TOKEN = new RegExp(`^(?:${DOW},?\\s+)?(${MON})\\.?\\s+(\\d{1,2})(?:,\\s*(\\d{4}))?$`, 'i');
-const TIME_TOKEN = /(\d{1,2})(?::(\d{2}))?\s*([AaPp])\.?[Mm]?\.?/;
-const MONTHS: Record<string, number> = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11 };
-
-function hermesYear(html: string): number {
-  const m = html.match(/Window:[^<]*?(\d{4})/);
-  return m ? parseInt(m[1], 10) : new Date().getFullYear();
-}
-
-/** "Sat Aug 22, Sat Aug 29, Sat Sep 5, 10:00 AM–3:00 PM" -> [{date ISO, allDay}] */
-function expandHermesDates(text: string, defaultYear: number): { start: Date; allDay: boolean }[] {
-  const cleaned = text.replace(/\s+/g, ' ').trim();
-  const parts = cleaned.split(/\s*[,;]\s*|\s+and\s+/i).map((x) => x.trim()).filter(Boolean);
-  const dates: { y: number; m: number; d: number }[] = [];
-  let timePart: string | null = null;
-  for (const part of parts) {
-    const dm = part.match(DATE_TOKEN);
-    if (dm) {
-      dates.push({ y: dm[3] ? parseInt(dm[3], 10) : defaultYear, m: MONTHS[dm[1].toLowerCase()], d: parseInt(dm[2], 10) });
-    } else if (TIME_TOKEN.test(part) || /all day|noon|midnight/i.test(part)) {
-      timePart = timePart ? `${timePart} ${part}` : part;
-    }
-  }
-  if (!dates.length) return [];
-  let hh = 0;
-  let mm = 0;
-  let allDay = true;
-  if (timePart) {
-    const tm = timePart.match(TIME_TOKEN);
-    if (tm) {
-      hh = parseInt(tm[1], 10) % 12;
-      mm = tm[2] ? parseInt(tm[2], 10) : 0;
-      if (/p/i.test(tm[3])) hh += 12;
-      allDay = false;
-    } else if (/noon/i.test(timePart)) {
-      hh = 12;
-      allDay = false;
-    }
-  }
-  return dates
-    .map(({ y, m, d }) => {
-      const start = localToDate(`${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
-      return start ? { start, allDay } : null;
-    })
-    .filter((x): x is { start: Date; allDay: boolean } => x !== null);
-}
-
 function parseHermesJson(parsed: any): LiveEvent[] {
   const list: any[] = Array.isArray(parsed?.events) ? parsed.events : [];
   return list
     .map((e: any): LiveEvent | null => {
       if (!e || !e.title) return null;
-      // Preferred: ISO 8601 "start" (with offset). Fallback: human "date" + "time" strings.
       let start: Date | null = null;
       if (e.start) {
         const d = new Date(e.start);
@@ -185,14 +135,13 @@ function parseHermesJson(parsed: any): LiveEvent[] {
       if (!start && e.date) start = parseHumanDate(String(e.date), e.time ? String(e.time) : undefined);
       if (!start) return null;
       const end = e.end ? new Date(e.end) : null;
-      const venue = e.venue || e.location || null;
       return toLegacy({
-        id: `hermes-${e.id || `${String(e.title).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${start.toISOString().slice(0, 10)}`}`,
+        id: `hermes-${e.id || `${slug(String(e.title))}-${start.toISOString().slice(0, 10)}`}`,
         title: String(e.title).trim(),
         start: start.toISOString(),
         end: end && !Number.isNaN(end.getTime()) ? end.toISOString() : null,
         allDay: Boolean(e.allDay) || (!e.start && !e.time),
-        venue,
+        venue: e.venue || e.location || null,
         city: e.city || null,
         imageUrl: e.imageUrl || e.image || null,
         url: e.url || e.link || null,
@@ -203,53 +152,26 @@ function parseHermesJson(parsed: any): LiveEvent[] {
     .filter((e: LiveEvent | null): e is LiveEvent => e !== null);
 }
 
-function parseHermesHtml(body: string): LiveEvent[] {
-  // <section class="city"><h2>City</h2><h3>Category</h3><article class="event"><pre>...</pre></article>
-  const $ = cheerio.load(body);
-  const year = hermesYear(body);
-  const out: LiveEvent[] = [];
-  $('article.event').each((_, el) => {
-    const $el = $(el);
-    const city = $el.closest('section.city').find('h2').first().text().trim() || null;
-    const category = $el.prevAll('h3').first().text().trim() || null;
-    const link = $el.find('a[href]').first().attr('href') || null;
-    const text = $el.find('pre').text() || $el.text();
-    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    if (!lines.length) return;
-    const titleLine = lines.find((l) => l.startsWith('•')) || lines[0];
-    const title = titleLine.replace(/^•\s*/, '').trim();
-    if (!title || /^Local events window checked/i.test(title)) return;
-    const field = (label: RegExp) => {
-      const l = lines.find((x) => label.test(x));
-      return l ? l.replace(label, '').trim() : '';
-    };
-    const when = field(/^Date(?:\s*&amp;|\s*&)?\s*time:\s*/i) || field(/^Date:\s*/i) || field(/^When:\s*/i);
-    const where = field(/^Venue(?:\s*\/\s*location)?:\s*/i) || field(/^Location:\s*/i) || field(/^Where:\s*/i);
-    const cat = field(/^Category:\s*/i) || category;
-    const occurrences = expandHermesDates(when, year);
-    if (!occurrences.length) return;
-    const whereParts = where.split(',').map((x) => x.trim()).filter(Boolean);
-    const venue = whereParts[0] || null;
-    const cityFromWhere = whereParts.length > 1 ? whereParts[whereParts.length - 1].replace(/\s*WA.*$/i, '').trim() : null;
-    occurrences.forEach(({ start, allDay }, i) => {
-      out.push(
-        toLegacy({
-          id: `hermes-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${start.toISOString().slice(0, 10)}-${i}`,
-          title,
-          start: start.toISOString(),
-          end: null,
-          allDay,
-          venue,
-          city: cityFromWhere || city,
-          imageUrl: null,
-          url: link,
-          category: cat || null,
-          source: 'hermes',
-        }),
-      );
-    });
-  });
-  return out;
+// ---------- Source 1b: Hermes HTML (shared parser in src/lib/hermesParse.ts) ----------
+// Cards under the "Bravefoote Calendar" section belong to /api/our-events, not here.
+function hermesHtmlToLocal(body: string): LiveEvent[] {
+  return parseHermesHtml(body)
+    .filter((it) => !it.isCalendar)
+    .map((it) =>
+      toLegacy({
+        id: `hermes-${slug(it.title)}-${it.start.toISOString().slice(0, 10)}-${it.occurrence}`,
+        title: it.title,
+        start: it.start.toISOString(),
+        end: it.end ? it.end.toISOString() : null,
+        allDay: it.allDay,
+        venue: it.venue,
+        city: it.city,
+        imageUrl: null,
+        url: it.url,
+        category: it.category,
+        source: 'hermes',
+      }),
+    );
 }
 
 // 1a) Document pushed by Hermes to POST /api/hermes/events
@@ -263,7 +185,7 @@ async function loadHermesPushed(): Promise<LiveEvent[]> {
       return [];
     }
   }
-  return parseHermesHtml(doc.body);
+  return hermesHtmlToLocal(doc.body);
 }
 
 // 1b) Hermes HTML (or JSON) page fetched over the LAN
@@ -288,7 +210,7 @@ async function loadHermesUrl(): Promise<LiveEvent[]> {
       return [];
     }
   }
-  return parseHermesHtml(body);
+  return hermesHtmlToLocal(body);
 }
 
 // ---------- Source 2: North Mason Chamber (GrowthZone) ----------
