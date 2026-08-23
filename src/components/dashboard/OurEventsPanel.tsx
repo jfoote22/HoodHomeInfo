@@ -82,7 +82,7 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
 
       <div style={{ fontFamily: mono, fontSize: 10, color: theme.dim, letterSpacing: '.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {extra > 0 ? `+${extra} more on the calendar view · ` : ''}
-        {ourEvents.writable ? 'Synced with Google Calendar' : ourEvents.sources.includes('hermes') ? 'Via Hermes' : ourEvents.sources.includes('ics') ? 'Via calendar feed' : 'Calendar not connected'}
+        {ourEvents.writable ? 'Synced with Google Calendar' : ourEvents.sources.includes('hermes') ? 'Via Howie' : ourEvents.sources.includes('ics') ? 'Via calendar feed' : 'Calendar not connected'}
       </div>
     </div>
   );

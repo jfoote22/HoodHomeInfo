@@ -14,7 +14,7 @@ const MAX_LIST_ROWS = 30; // the calendar view shows the rest
 const SOURCE_LABEL: Record<string, string> = {
   'north-mason-chamber': 'North Mason Chamber',
   'explore-hood-canal': 'Explore Hood Canal',
-  hermes: 'Hermes',
+  hermes: 'Howie',
 };
 
 function minutesAgo(from: Date | null, now: Date): string {
