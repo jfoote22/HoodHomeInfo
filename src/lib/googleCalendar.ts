@@ -183,6 +183,10 @@ export function templateLink(ev: NewCalendarEvent): string {
     details: [ev.description, ev.url].filter(Boolean).join('\n'),
     location: ev.location || '',
     ctz: TZ,
+    // Open in the household Google account (switches the signed-in profile, or prompts to
+    // sign in) and preselect that calendar, instead of whatever profile the browser is on.
+    authuser: calendarId(),
+    src: calendarId(),
   });
   return `https://calendar.google.com/calendar/render?${params}`;
 }
