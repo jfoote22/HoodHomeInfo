@@ -1,21 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { useDashboardData } from './DashboardDataContext';
 import { CALENDAR_CHANGED_EVENT } from './CalendarView';
 import type { OurEvent } from '../../lib/hooks/useOurEvents';
-
-const MAX_ROWS = 3;
+import { useAutoScroll } from '../../lib/hooks/useAutoScroll';
 
 type DeleteState = 'confirm' | 'deleting' | 'error';
 
 export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
   const { ourEvents } = useDashboardData();
-  const rows = ourEvents.events.slice(0, MAX_ROWS);
-  const extra = Math.max(0, ourEvents.events.length - rows.length);
+  const rows = ourEvents.events;
   const mono = FONT_FAMILIES.mono;
   const [pending, setPending] = useState<{ id: string; state: DeleteState } | null>(null);
+
+  // Same slow ping-pong scroll as Local Events when the list outgrows the panel; holds
+  // still while the pointer is over it or a delete confirmation is open.
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const hoverRef = useRef(false);
+  const pausedRef = useRef(false);
+  pausedRef.current = hoverRef.current || pending !== null;
+  const { canScroll, scrolled } = useAutoScroll(viewportRef, listRef, pausedRef, [rows.length]);
+  const fadeColor = theme.isLight ? '255,255,255' : '13,23,41';
 
   const remove = async (e: OurEvent) => {
     setPending({ id: e.id, state: 'deleting' });
@@ -82,7 +90,19 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
         </span>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div
+        ref={viewportRef}
+        style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden' }}
+        onMouseEnter={() => {
+          hoverRef.current = true;
+          pausedRef.current = true;
+        }}
+        onMouseLeave={() => {
+          hoverRef.current = false;
+          pausedRef.current = pending !== null;
+        }}
+      >
+        <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: 6, transform: 'translate3d(0, 0, 0)', willChange: 'transform' }}>
         {rows.map((e) => {
           const isToday = e.dayLabel === 'TODAY';
           const p = pending?.id === e.id ? pending.state : null;
@@ -166,10 +186,17 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
           </div>
         )}
         {ourEvents.loading && <div style={{ fontFamily: mono, fontSize: 11, color: theme.dim }}>Loading calendar…</div>}
+        </div>
+        {canScroll && (
+          <>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 14, background: `linear-gradient(rgba(${fadeColor},${scrolled ? 0.95 : 0}), rgba(${fadeColor},0))`, pointerEvents: 'none', transition: 'opacity .4s' }} />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 18, background: `linear-gradient(rgba(${fadeColor},0), rgba(${fadeColor},0.95))`, pointerEvents: 'none' }} />
+          </>
+        )}
       </div>
 
       <div style={{ fontFamily: mono, fontSize: 10, color: theme.dim, letterSpacing: '.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {extra > 0 ? `+${extra} more on the calendar view · ` : ''}
+        {rows.length > 0 ? `${rows.length} upcoming · ` : ''}
         {ourEvents.writable ? 'Synced with Google Calendar' : ourEvents.sources.includes('hermes') ? 'Via Howie' : ourEvents.sources.includes('ics') ? 'Via calendar feed' : 'Calendar not connected'}
       </div>
     </div>
