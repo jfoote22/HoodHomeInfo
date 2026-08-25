@@ -22,8 +22,7 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
   const hoverRef = useRef(false);
   const pausedRef = useRef(false);
   pausedRef.current = hoverRef.current || pending !== null;
-  const { canScroll, scrolled } = useAutoScroll(viewportRef, listRef, pausedRef, [rows.length]);
-  const fadeColor = theme.isLight ? '255,255,255' : '13,23,41';
+  useAutoScroll(viewportRef, listRef, pausedRef);
 
   const remove = async (e: OurEvent) => {
     setPending({ id: e.id, state: 'deleting' });
@@ -187,12 +186,6 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
         )}
         {ourEvents.loading && <div style={{ fontFamily: mono, fontSize: 11, color: theme.dim }}>Loading calendar…</div>}
         </div>
-        {canScroll && (
-          <>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 14, background: `linear-gradient(rgba(${fadeColor},${scrolled ? 0.95 : 0}), rgba(${fadeColor},0))`, pointerEvents: 'none', transition: 'opacity .4s' }} />
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 18, background: `linear-gradient(rgba(${fadeColor},0), rgba(${fadeColor},0.95))`, pointerEvents: 'none' }} />
-          </>
-        )}
       </div>
 
       <div style={{ fontFamily: mono, fontSize: 10, color: theme.dim, letterSpacing: '.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

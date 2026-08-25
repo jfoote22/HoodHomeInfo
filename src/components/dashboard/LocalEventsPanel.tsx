@@ -225,7 +225,6 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const [scrolled, setScrolled] = useState(false);
   const [canScroll, setCanScroll] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addStates, setAddStates] = useState<Record<string, AddState>>({});
@@ -269,7 +268,6 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
         }
       }
       list.style.transform = `translate3d(0, ${-pos}px, 0)`;
-      setScrolled(pos > 2);
       last = t;
       raf = requestAnimationFrame(tick);
     };
@@ -319,7 +317,6 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
   const footer = isPlaceholder
     ? 'Example events · live feeds unavailable right now'
     : `Auto-updating · ${events.length} upcoming · ${sources.map((s) => SOURCE_LABEL[s] || s).join(' + ')} · pulled ${minutesAgo(fetchedAt, now)}`;
-  const fadeColor = theme.isLight ? '255,255,255' : '13,23,41';
 
   return (
     <div
@@ -376,12 +373,6 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
             />
           ))}
         </div>
-        {canScroll && (
-          <>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 18, background: `linear-gradient(rgba(${fadeColor},${scrolled ? 0.95 : 0}), rgba(${fadeColor},0))`, pointerEvents: 'none', transition: 'opacity .4s' }} />
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 26, background: `linear-gradient(rgba(${fadeColor},0), rgba(${fadeColor},0.95))`, pointerEvents: 'none' }} />
-          </>
-        )}
       </div>
 
       <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.dim, letterSpacing: '.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
