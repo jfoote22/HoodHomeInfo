@@ -154,7 +154,8 @@ export async function GET(request: Request) {
   const events = dedupe(all)
     .filter((e) => {
       const start = new Date(e.start).getTime();
-      const end = e.end ? new Date(e.end).getTime() : start + 2 * 3600 * 1000;
+      // All-day events stay listed through the whole day, not just the first two hours.
+      const end = e.end ? new Date(e.end).getTime() : start + (e.allDay ? 24 : 2) * 3600 * 1000;
       return end >= now - 3600 * 1000 && start <= now + WINDOW_DAYS * 86400000;
     })
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());

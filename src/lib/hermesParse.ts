@@ -42,13 +42,28 @@ export function hermesYear(html: string): number {
   return m ? parseInt(m[1], 10) : new Date().getFullYear();
 }
 
-/** "Sat, Aug 29 and Sat, Sep 5, 2026, 10:00 AM–3:00 PM" -> one entry per date, with the time range. */
+// "2026-08-25", "2026-08-25 10:00", "2026-08-25T10:00" - the form Hermes uses for calendar cards.
+const ISO_TOKEN = /(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{1,2}):(\d{2}))?/g;
+
+/**
+ * "Sat, Aug 29 and Sat, Sep 5, 2026, 10:00 AM–3:00 PM" -> one entry per date, with the time
+ * range. Also accepts ISO dates ("2026-08-25", optionally with a 24h time).
+ */
 export function expandHermesDates(text: string, defaultYear: number): { start: Date; end: Date | null; allDay: boolean }[] {
-  const cleaned = text.replace(/\s+/g, ' ').trim();
-  const parts = cleaned.split(/\s*[,;]\s*|\s+and\s+|\s*&\s*/i).map((x) => x.trim()).filter(Boolean);
   const dates: { y: number; m: number; d: number }[] = [];
   let explicitYear: number | null = null;
   let timePart: string | null = null;
+  // Boxed so TypeScript sees the assignment made inside the replace callback.
+  const iso: { time: { h: number; m: number } | null } = { time: null };
+  const cleaned = text
+    .replace(ISO_TOKEN, (_, y, m, d, hh, mm) => {
+      dates.push({ y: parseInt(y, 10), m: parseInt(m, 10) - 1, d: parseInt(d, 10) });
+      if (hh && !iso.time) iso.time = { h: parseInt(hh, 10), m: parseInt(mm, 10) };
+      return ' ';
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+  const parts = cleaned.split(/\s*[,;]\s*|\s+and\s+|\s*&\s*/i).map((x) => x.trim()).filter(Boolean);
   for (const part of parts) {
     const dm = part.match(DATE_TOKEN);
     if (dm) {
@@ -82,6 +97,10 @@ export function expandHermesDates(text: string, defaultYear: number): { start: D
       sh = 12;
       allDay = false;
     }
+  } else if (iso.time) {
+    sh = iso.time.h;
+    sm = iso.time.m;
+    allDay = false;
   }
   const year = explicitYear || defaultYear;
   return dates
