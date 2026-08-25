@@ -169,6 +169,59 @@ export async function insertEvent(ev: NewCalendarEvent): Promise<CalendarEvent> 
   return created;
 }
 
+export interface DeleteTarget {
+  id?: string | null;
+  source?: string | null;
+  title: string;
+  start: string; // ISO
+}
+
+function normTitle(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+async function deleteById(token: string, id: string): Promise<boolean> {
+  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId())}/events/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 404 || res.status === 410) return false; // already gone
+  if (!res.ok) throw new Error(`Google Calendar delete HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  return true;
+}
+
+/**
+ * Delete an event. Events that came from Google carry their Google id; ones that reached us
+ * via Hermes or an ICS feed don't, so those are matched by title on the same local day.
+ */
+export async function deleteEvent(target: DeleteTarget): Promise<{ deleted: boolean; id: string | null }> {
+  const token = await accessToken();
+  if (target.id && target.source === 'google') {
+    return { deleted: await deleteById(token, target.id), id: target.id };
+  }
+  const start = new Date(target.start);
+  if (Number.isNaN(start.getTime())) throw new Error('Invalid start');
+  const day = start.toLocaleDateString('en-CA', { timeZone: TZ });
+  const timeMin = new Date(start.getTime() - 36 * 3600 * 1000).toISOString();
+  const timeMax = new Date(start.getTime() + 36 * 3600 * 1000).toISOString();
+  const params = new URLSearchParams({ timeMin, timeMax, singleEvents: 'true', maxResults: '50', timeZone: TZ, q: target.title });
+  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId())}/events?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`Google Calendar search HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const json = await res.json();
+  const want = normTitle(target.title);
+  const match = (json.items || [])
+    .map(toEvent)
+    .filter((e: CalendarEvent | null): e is CalendarEvent => e !== null)
+    .find((e: CalendarEvent) => normTitle(e.title) === want && new Date(e.start).toLocaleDateString('en-CA', { timeZone: TZ }) === day);
+  if (!match) return { deleted: false, id: null };
+  // Recurring instances have ids like "<base>_20260907"; deleting the instance id removes
+  // just that occurrence, which is what someone tapping one row expects.
+  return { deleted: await deleteById(token, match.id), id: match.id };
+}
+
 /** Pre-filled "add to Google Calendar" link - used as a fallback when no service account is set. */
 export function templateLink(ev: NewCalendarEvent): string {
   const start = new Date(ev.start);

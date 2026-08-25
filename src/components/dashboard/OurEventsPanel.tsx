@@ -1,15 +1,59 @@
 'use client';
 
+import { useState } from 'react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { useDashboardData } from './DashboardDataContext';
+import { CALENDAR_CHANGED_EVENT } from './CalendarView';
+import type { OurEvent } from '../../lib/hooks/useOurEvents';
 
 const MAX_ROWS = 3;
+
+type DeleteState = 'confirm' | 'deleting' | 'error';
 
 export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
   const { ourEvents } = useDashboardData();
   const rows = ourEvents.events.slice(0, MAX_ROWS);
   const extra = Math.max(0, ourEvents.events.length - rows.length);
   const mono = FONT_FAMILIES.mono;
+  const [pending, setPending] = useState<{ id: string; state: DeleteState } | null>(null);
+
+  const remove = async (e: OurEvent) => {
+    setPending({ id: e.id, state: 'deleting' });
+    try {
+      const res = await fetch('/api/calendar/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: e.id, source: e.source, title: e.title, start: e.start.toISOString() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      setPending(null);
+      ourEvents.refresh();
+      window.dispatchEvent(new Event(CALENDAR_CHANGED_EVENT));
+    } catch (err) {
+      console.error('delete failed:', err);
+      setPending({ id: e.id, state: 'error' });
+    }
+  };
+
+  const smallBtn = (label: string, color: string, onClick: () => void, filled = false): JSX.Element => (
+    <button
+      onClick={onClick}
+      style={{
+        fontFamily: mono,
+        fontSize: 11,
+        letterSpacing: '.06em',
+        color: filled ? (theme.isLight ? '#fff' : '#1a1206') : color,
+        background: filled ? color : 'transparent',
+        border: `1px solid ${color}`,
+        borderRadius: 8,
+        padding: '3px 9px',
+        cursor: 'pointer',
+      }}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div
@@ -42,6 +86,7 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {rows.map((e) => {
           const isToday = e.dayLabel === 'TODAY';
+          const p = pending?.id === e.id ? pending.state : null;
           return (
             <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span
@@ -62,11 +107,55 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: theme.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</div>
-                <div style={{ fontFamily: mono, fontSize: 11, color: theme.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {e.dateLabel} · {e.timeLabel}
-                  {e.location ? ` · ${e.location}` : ''}
-                </div>
+                {p === 'confirm' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                    <span style={{ fontFamily: mono, fontSize: 11, color: theme.text }}>Delete this event?</span>
+                    {smallBtn('Delete', '#e0564b', () => remove(e), true)}
+                    {smallBtn('Keep', theme.muted, () => setPending(null))}
+                  </div>
+                ) : p === 'deleting' ? (
+                  <div style={{ fontFamily: mono, fontSize: 11, color: theme.muted }}>Deleting…</div>
+                ) : p === 'error' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                    <span style={{ fontFamily: mono, fontSize: 11, color: '#e0564b' }}>Couldn’t delete.</span>
+                    {smallBtn('Retry', '#e0564b', () => remove(e))}
+                    {smallBtn('Dismiss', theme.muted, () => setPending(null))}
+                  </div>
+                ) : (
+                  <div style={{ fontFamily: mono, fontSize: 11, color: theme.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {e.dateLabel} · {e.timeLabel}
+                    {e.location ? ` · ${e.location}` : ''}
+                  </div>
+                )}
               </div>
+              {ourEvents.writable && !p && (
+                <button
+                  onClick={() => setPending({ id: e.id, state: 'confirm' })}
+                  title="Delete from the calendar"
+                  aria-label={`Delete ${e.title}`}
+                  style={{
+                    flexShrink: 0,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    border: `1px solid ${theme.isLight ? 'rgba(20,34,47,.14)' : 'rgba(255,255,255,.1)'}`,
+                    background: 'transparent',
+                    color: theme.muted,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: 0.75,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="M19 6l-1 14H6L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                  </svg>
+                </button>
+              )}
             </div>
           );
         })}

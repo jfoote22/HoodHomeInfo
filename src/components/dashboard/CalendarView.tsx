@@ -12,6 +12,8 @@ const TZ = 'America/Los_Angeles';
 const CALENDAR_ID = process.env.NEXT_PUBLIC_OUR_CALENDAR_ID || 'bravefoote@gmail.com';
 // Google's embed never refreshes itself; reload it when it's re-revealed after this long.
 const STALE_MS = 5 * 60 * 1000;
+/** Dispatch on window after changing the calendar through the API so the embed reloads. */
+export const CALENDAR_CHANGED_EVENT = 'hh:calendar-changed';
 
 function embedUrl(): string {
   const u = new URL('https://calendar.google.com/calendar/embed');
@@ -35,6 +37,16 @@ export default function CalendarView({ theme, active }: { theme: DashboardTheme;
     loadedAt.current = Date.now();
     setLoadKey((k) => k + 1);
   }, [active]);
+
+  // The Our Events panel announces edits it made through the API (see CALENDAR_CHANGED_EVENT).
+  useEffect(() => {
+    const onChanged = () => {
+      loadedAt.current = Date.now();
+      setLoadKey((k) => k + 1);
+    };
+    window.addEventListener(CALENDAR_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(CALENDAR_CHANGED_EVENT, onChanged);
+  }, []);
 
   return (
     <div
