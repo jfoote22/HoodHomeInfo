@@ -63,7 +63,9 @@ function unionIcon(color: string, ink: string) {
 function FitBoundsOnce() {
   const map = useMap();
   useEffect(() => {
-    map.fitBounds(HOOD_CANAL_BOUNDS, { padding: [10, 10] });
+    map.fitBounds(HOOD_CANAL_BOUNDS, { padding: [10, 10], animate: false });
+    // One click further out than the fitted view, for more of the Sound on the wall display.
+    map.setZoom(map.getZoom() - 1, { animate: false });
   }, [map]);
   return null;
 }
