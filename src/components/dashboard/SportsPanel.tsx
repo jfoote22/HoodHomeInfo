@@ -94,7 +94,6 @@ export default function SportsPanel({ team, theme }: { team: 'mariners' | 'seaha
         <Logo src={data?.logo || null} team={team} size={230} />
       </div>
       <div style={{ position: 'absolute', left: -80, top: -80, width: 240, height: 240, borderRadius: '50%', background: `radial-gradient(circle, ${b.glow}55, transparent 70%)`, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 3, background: `linear-gradient(90deg, ${b.highlight}, ${b.accent})`, opacity: 0.9 }} />
 
       {/* Header: logo, name, record */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative' }}>
