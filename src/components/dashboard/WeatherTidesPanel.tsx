@@ -183,6 +183,14 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         </span>
         <span style={{ color: theme.muted }}>{tide?.highLowSummary || ''}</span>
       </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: FONT_FAMILIES.mono, fontSize: 13, color: theme.bodySecondary }}>
+        <span style={{ fontSize: 11, letterSpacing: '.16em', color: theme.eyebrow, textTransform: 'uppercase' }}>Tide Direction</span>
+        <span>
+          <span style={{ color: theme.text, fontWeight: 600 }}>{tide?.trendRateLabel || '—'}</span>{' '}
+          <span style={{ color: theme.muted }}>{tide?.trend ? (tide.trend === 'rising' ? 'flooding' : 'ebbing') : ''}</span>
+        </span>
+      </div>
     </div>
   );
 }

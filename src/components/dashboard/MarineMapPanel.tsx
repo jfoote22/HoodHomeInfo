@@ -29,18 +29,21 @@ function speciesColor(species: SightingSpecies, theme: DashboardTheme): string {
   return theme.map.accentB; // amber for humpback / gray / minke / other whales
 }
 
-function pingIcon(color: string, isLight: boolean, hoursAgo: number, recent: boolean) {
-  // Older reports fade; anything from the last 24h keeps the pulsing ring.
-  const alpha = hoursAgo <= 24 ? 1 : hoursAgo <= 72 ? 0.7 : 0.45;
+function pingIcon(color: string, isLight: boolean, hoursAgo: number, recent: boolean, rank?: number) {
+  // Older reports fade; anything from the last 24h keeps the pulsing ring. The three newest
+  // sightings carry a numbered tag matching the "Latest sightings" box.
+  const alpha = rank ? 1 : hoursAgo <= 24 ? 1 : hoursAgo <= 72 ? 0.7 : 0.45;
   const size = recent ? 34 : 26;
   const dot = recent ? 12 : 9;
+  const ink = isLight ? '#fff' : '#0d1729';
   return new DivIcon({
     className: '',
     html: `
       <div style="position:relative;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;opacity:${alpha}">
         <div style="position:absolute;width:${size}px;height:${size}px;border-radius:50%;background:${color};opacity:.16"></div>
-        <div style="position:absolute;width:${dot}px;height:${dot}px;border-radius:50%;background:${color};border:2px solid ${isLight ? '#fff' : '#0d1729'}"></div>
+        <div style="position:absolute;width:${dot}px;height:${dot}px;border-radius:50%;background:${color};border:2px solid ${ink}"></div>
         ${recent ? `<div class="hh-ping-ring" style="position:absolute;width:${dot}px;height:${dot}px;border-radius:50%;border:2px solid ${color};"></div>` : ''}
+        ${rank ? `<div style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:${color};color:${ink};border:1.5px solid ${ink};font:700 11px/15px ${FONT_FAMILIES.mono};text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.5)">${rank}</div>` : ''}
       </div>
     `,
     iconSize: [size, size],
@@ -72,15 +75,16 @@ function formatClock(now: Date) {
 }
 
 export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
-  const { sightings: sightingsState, tide, now } = useDashboardData();
+  const { sightings: sightingsState, now } = useDashboardData();
   const { sightings, last24h, isPlaceholder } = sightingsState;
 
   const tileUrl = theme.isLight
     ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
-  const tideDirectionLabel = tide?.trend ? (tide.trend === 'rising' ? 'flooding' : 'ebbing') : '—';
-  const tideRateLabel = tide?.trendRateLabel || '—';
+  // Three newest sightings, numbered 1-3 both in the box and on their map pins.
+  const latest = useMemo(() => [...sightings].sort((a, b) => a.hoursAgo - b.hoursAgo).slice(0, 3), [sightings]);
+  const rankById = useMemo(() => new Map(latest.map((s, i) => [s.id, i + 1])), [latest]);
 
   // Legend only lists species actually on the map right now (max 3 chips).
   const legend = useMemo(() => {
@@ -130,8 +134,8 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
           <Marker
             key={s.id}
             position={[s.lat, s.lng]}
-            icon={pingIcon(speciesColor(s.species, theme), theme.isLight, s.hoursAgo, s.hoursAgo <= 24)}
-            zIndexOffset={s.hoursAgo <= 24 ? 500 : 0}
+            icon={pingIcon(speciesColor(s.species, theme), theme.isLight, s.hoursAgo, s.hoursAgo <= 24, rankById.get(s.id))}
+            zIndexOffset={rankById.has(s.id) ? 1000 : s.hoursAgo <= 24 ? 500 : 0}
           >
             <Popup>
               <strong>{s.label}</strong>
@@ -161,37 +165,74 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
         <div style={{ fontFamily: FONT_FAMILIES.display, fontWeight: 700, fontSize: 46, lineHeight: 0.95, letterSpacing: 1, color: '#f4f8fd' }}>MARINE MAP</div>
       </div>
 
-      {/* Top-right stack: legend + LIVE on one row, tide direction just under it */}
-      <div style={{ position: 'absolute', top: 30, right: 30, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10, zIndex: OVERLAY_Z }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {(legend.length ? legend : (['orca'] as SightingSpecies[])).map((sp) => (
-            <span key={sp} style={glassPill}>
-              <span style={{ width: 9, height: 9, borderRadius: '50%', background: speciesColor(sp, theme) }} />
-              {SPECIES_LABEL[sp]}
-            </span>
-          ))}
-          <span style={{ ...glassPill, gap: 9, padding: '8px 14px' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: isPlaceholder ? '#f59e0b' : theme.liveGreen, animation: isPlaceholder ? undefined : 'dashboardBlink 1.6s infinite' }} />
-            {liveLabel}
-          </span>
-        </div>
+      {/* Latest sightings, numbered to match the tags on their pins */}
+      {latest.length > 0 && (
         <div
           style={{
+            position: 'absolute',
+            top: 96,
+            left: 30,
+            width: 300,
             background: 'rgba(10,20,32,.62)',
             border: '1px solid rgba(255,255,255,.1)',
             backdropFilter: 'blur(8px)',
             borderRadius: 14,
-            padding: '9px 14px',
+            padding: '10px 14px 12px',
             display: 'flex',
-            alignItems: 'center',
-            gap: 12,
+            flexDirection: 'column',
+            gap: 8,
+            pointerEvents: 'none',
+            zIndex: OVERLAY_Z,
           }}
         >
-          <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 10, letterSpacing: '.16em', color: '#9ec7ef', textTransform: 'uppercase' }}>Tide Direction</span>
-          <span style={{ fontSize: 15, fontWeight: 600, color: '#f4f8fd' }}>
-            {tideRateLabel} <span style={{ color: '#c3d3e4', fontWeight: 400 }}>{tideDirectionLabel}</span>
-          </span>
+          <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 10, letterSpacing: '.16em', color: '#9ec7ef', textTransform: 'uppercase' }}>
+            Latest sightings
+          </div>
+          {latest.map((s, i) => {
+            const color = speciesColor(s.species, theme);
+            return (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <span
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    background: color,
+                    color: theme.isLight ? '#fff' : '#0d1729',
+                    fontFamily: FONT_FAMILIES.mono,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#f4f8fd', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {s.label}
+                  {s.count ? <span style={{ color: '#c3d3e4', fontWeight: 400 }}> · {s.count}</span> : null}
+                </span>
+                <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: '#c3d3e4', flexShrink: 0 }}>{s.hoursAgoLabel}</span>
+              </div>
+            );
+          })}
         </div>
+      )}
+
+      {/* Top-right: legend + LIVE on one row */}
+      <div style={{ position: 'absolute', top: 30, right: 30, display: 'flex', alignItems: 'center', gap: 10, zIndex: OVERLAY_Z }}>
+        {(legend.length ? legend : (['orca'] as SightingSpecies[])).map((sp) => (
+          <span key={sp} style={glassPill}>
+            <span style={{ width: 9, height: 9, borderRadius: '50%', background: speciesColor(sp, theme) }} />
+            {SPECIES_LABEL[sp]}
+          </span>
+        ))}
+        <span style={{ ...glassPill, gap: 9, padding: '8px 14px' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: isPlaceholder ? '#f59e0b' : theme.liveGreen, animation: isPlaceholder ? undefined : 'dashboardBlink 1.6s infinite' }} />
+          {liveLabel}
+        </span>
       </div>
     </div>
   );
