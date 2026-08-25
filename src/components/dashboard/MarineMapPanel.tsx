@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { DivIcon, LatLngBounds } from 'leaflet';
+import { DivIcon, LatLngBounds, type Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { useDashboardData } from './DashboardDataContext';
@@ -60,13 +60,14 @@ function unionIcon(color: string, ink: string) {
   });
 }
 
-function FitBoundsOnce() {
+function FitBoundsOnce({ onReady }: { onReady: (map: LeafletMap) => void }) {
   const map = useMap();
   useEffect(() => {
     map.fitBounds(HOOD_CANAL_BOUNDS, { padding: [10, 10], animate: false });
     // One click further out than the fitted view, for more of the Sound on the wall display.
     map.setZoom(map.getZoom() - 1, { animate: false });
-  }, [map]);
+    onReady(map);
+  }, [map, onReady]);
   return null;
 }
 
@@ -79,6 +80,7 @@ function formatClock(now: Date) {
 export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
   const { sightings: sightingsState, now } = useDashboardData();
   const { sightings, last24h, isPlaceholder } = sightingsState;
+  const [map, setMap] = useState<LeafletMap | null>(null);
 
   const tileUrl = theme.isLight
     ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
@@ -124,7 +126,7 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
         scrollWheelZoom={false}
         attributionControl={true}
       >
-        <FitBoundsOnce />
+        <FitBoundsOnce onReady={setMap} />
         <TileLayer
           url={tileUrl}
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> · sightings <a href="https://acartia.io">Acartia</a>'
@@ -222,6 +224,37 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
           })}
         </div>
       )}
+
+      {/* Zoom, kept quiet: two small glyphs bottom-left */}
+      <div style={{ position: 'absolute', bottom: 22, left: 24, display: 'flex', gap: 6, zIndex: OVERLAY_Z }}>
+        {[
+          { glyph: '+', label: 'Zoom in', go: () => map?.zoomIn() },
+          { glyph: '−', label: 'Zoom out', go: () => map?.zoomOut() },
+        ].map((b) => (
+          <button
+            key={b.glyph}
+            onClick={b.go}
+            title={b.label}
+            aria-label={b.label}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,.12)',
+              background: 'rgba(10,20,32,.45)',
+              color: '#c3d3e4',
+              fontFamily: FONT_FAMILIES.mono,
+              fontSize: 17,
+              lineHeight: 1,
+              cursor: 'pointer',
+              opacity: 0.55,
+              padding: 0,
+            }}
+          >
+            {b.glyph}
+          </button>
+        ))}
+      </div>
 
       {/* Top-right: legend + LIVE on one row */}
       <div style={{ position: 'absolute', top: 30, right: 30, display: 'flex', alignItems: 'center', gap: 10, zIndex: OVERLAY_Z }}>
