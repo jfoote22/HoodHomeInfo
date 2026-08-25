@@ -21,7 +21,7 @@ const MarineMapPanel = dynamic(() => import('./MarineMapPanel'), { ssr: false })
 // Our Events panel fades the Google Calendar in over them; it stays while the pointer is
 // over it or someone has clicked into it, and fades back out IDLE_MS after the pointer goes
 // idle on the page. ?view=calendar pins the calendar on.
-const IDLE_MS = 10000;
+const IDLE_MS = 3000;
 // The calendar is a cross-origin iframe, so pointer movement inside it is invisible to us.
 // A mouse parked over it would otherwise keep the calendar up forever on the wall display.
 const PARKED_MS = 3 * 60 * 1000;

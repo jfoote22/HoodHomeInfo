@@ -225,7 +225,7 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const [offset, setOffset] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
   const [canScroll, setCanScroll] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addStates, setAddStates] = useState<Record<string, AddState>>({});
@@ -237,7 +237,9 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
   };
 
   // Slow ping-pong auto-scroll when the list is taller than the viewport. Pauses while the
-  // pointer is over the list or for a while after someone taps an event.
+  // pointer is over the list or for a while after someone taps an event. The position is
+  // written straight to the DOM: routing it through React state re-rendered every row on
+  // every frame, which stuttered on the Pi.
   useEffect(() => {
     const viewport = viewportRef.current;
     const list = listRef.current;
@@ -254,9 +256,9 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
       const paused = hoverRef.current || Date.now() < pauseUntilRef.current;
       if (max <= 2) {
         pos = 0;
-        setOffset(0);
       } else if (!paused && t >= holdUntil) {
-        const dt = (t - last) / 1000;
+        // Cap dt so a dropped frame (or a tab that was hidden) can't produce a visible jump.
+        const dt = Math.min(0.05, (t - last) / 1000);
         pos = Math.min(max, Math.max(0, pos + dir * SCROLL_PX_PER_SEC * dt));
         if (pos >= max) {
           dir = -1;
@@ -265,8 +267,9 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
           dir = 1;
           holdUntil = t + HOLD_MS;
         }
-        setOffset(pos);
       }
+      list.style.transform = `translate3d(0, ${-pos}px, 0)`;
+      setScrolled(pos > 2);
       last = t;
       raf = requestAnimationFrame(tick);
     };
@@ -357,7 +360,7 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
           hoverRef.current = false;
         }}
       >
-        <div ref={listRef} style={{ transform: `translateY(${-offset}px)`, willChange: 'transform' }}>
+        <div ref={listRef} style={{ transform: 'translate3d(0, 0, 0)', willChange: 'transform' }}>
           {events.map((event, i) => (
             <EventRow
               key={event.id}
@@ -375,7 +378,7 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
         </div>
         {canScroll && (
           <>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 18, background: `linear-gradient(rgba(${fadeColor},${offset > 2 ? 0.95 : 0}), rgba(${fadeColor},0))`, pointerEvents: 'none', transition: 'opacity .4s' }} />
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 18, background: `linear-gradient(rgba(${fadeColor},${scrolled ? 0.95 : 0}), rgba(${fadeColor},0))`, pointerEvents: 'none', transition: 'opacity .4s' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 26, background: `linear-gradient(rgba(${fadeColor},0), rgba(${fadeColor},0.95))`, pointerEvents: 'none' }} />
           </>
         )}
