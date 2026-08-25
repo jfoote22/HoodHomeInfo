@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import ScaleToFit from './ScaleToFit';
 import AIVoiceAgentPanel from './AIVoiceAgentPanel';
@@ -17,33 +17,102 @@ import { FONT_FAMILIES } from './theme';
 // Leaflet touches `window`, so the map panel can't be server-rendered.
 const MarineMapPanel = dynamic(() => import('./MarineMapPanel'), { ssr: false });
 
-// The live panels (map, sports, weather/tides, AI) and the full calendar view take turns in
-// the center+right area, crossfading every ROTATE_MS. ?rotate=<seconds> overrides; ?rotate=0
-// disables (panels only); ?view=calendar starts on the calendar.
-const DEFAULT_ROTATE_MS = 30000;
+// The live panels (map, sports, weather/tides, AI) are the default view. Hovering the
+// Our Events panel fades the Google Calendar in over them; it stays while the pointer is
+// over it or someone has clicked into it, and fades back out IDLE_MS after the pointer goes
+// idle on the page. ?view=calendar pins the calendar on.
+const IDLE_MS = 10000;
+// The calendar is a cross-origin iframe, so pointer movement inside it is invisible to us.
+// A mouse parked over it would otherwise keep the calendar up forever on the wall display.
+const PARKED_MS = 3 * 60 * 1000;
 const FADE_MS = 1400;
 
-function useRotation() {
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [rotateMs, setRotateMs] = useState(DEFAULT_ROTATE_MS);
-  useEffect(() => {
-    const qs = new URLSearchParams(window.location.search);
-    const r = qs.get('rotate');
-    const ms = r !== null && r !== '' ? Math.max(0, Number(r)) * 1000 : DEFAULT_ROTATE_MS;
-    setRotateMs(Number.isFinite(ms) ? ms : DEFAULT_ROTATE_MS);
-    if (qs.get('view') === 'calendar') setShowCalendar(true);
+function useCalendarReveal(calendarRef: React.RefObject<HTMLDivElement>) {
+  const [show, setShow] = useState(false);
+  const pinned = useRef(false);
+  const overCalendar = useRef(false);
+  const engaged = useRef(false); // the iframe has focus: an event was clicked and not clicked away from
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const parkedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimers = () => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    if (parkedTimer.current) clearTimeout(parkedTimer.current);
+    idleTimer.current = parkedTimer.current = null;
+  };
+  const armIdle = useCallback(() => {
+    clearTimers();
+    if (pinned.current || overCalendar.current || engaged.current) return;
+    idleTimer.current = setTimeout(() => setShow(false), IDLE_MS);
   }, []);
+  const reveal = useCallback(() => {
+    setShow(true);
+    armIdle();
+  }, [armIdle]);
+
   useEffect(() => {
-    if (!rotateMs) return;
-    const id = setInterval(() => setShowCalendar((v) => !v), rotateMs);
-    return () => clearInterval(id);
-  }, [rotateMs]);
-  return { showCalendar, rotateMs };
+    if (new URLSearchParams(window.location.search).get('view') === 'calendar') {
+      pinned.current = true;
+      setShow(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!show) return;
+    const iframeFocused = () => {
+      const el = document.activeElement;
+      return el?.tagName === 'IFRAME' && !!calendarRef.current?.contains(el);
+    };
+    const onActivity = () => {
+      if (!overCalendar.current && !engaged.current) armIdle();
+    };
+    const onBlur = () => {
+      if (iframeFocused()) {
+        engaged.current = true;
+        clearTimers();
+      }
+    };
+    const onFocus = () => {
+      engaged.current = false;
+      armIdle();
+    };
+    const opts = { passive: true } as const;
+    window.addEventListener('mousemove', onActivity, opts);
+    window.addEventListener('pointerdown', onActivity, opts);
+    window.addEventListener('wheel', onActivity, opts);
+    window.addEventListener('keydown', onActivity);
+    window.addEventListener('touchstart', onActivity, opts);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('mousemove', onActivity);
+      window.removeEventListener('pointerdown', onActivity);
+      window.removeEventListener('wheel', onActivity);
+      window.removeEventListener('keydown', onActivity);
+      window.removeEventListener('touchstart', onActivity);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('focus', onFocus);
+      clearTimers();
+    };
+  }, [show, armIdle, calendarRef]);
+
+  const onCalendarEnter = useCallback(() => {
+    overCalendar.current = true;
+    clearTimers();
+    if (!pinned.current) parkedTimer.current = setTimeout(() => setShow(false), PARKED_MS);
+  }, []);
+  const onCalendarLeave = useCallback(() => {
+    overCalendar.current = false;
+    armIdle();
+  }, [armIdle]);
+
+  return { show, reveal, onCalendarEnter, onCalendarLeave };
 }
 
 export default function MarineDashboard() {
   const { theme, themeId, toggleTheme } = useDashboardTheme();
-  const { showCalendar } = useRotation();
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const { show: showCalendar, reveal, onCalendarEnter, onCalendarLeave } = useCalendarReveal(calendarRef);
 
   return (
     <DashboardDataProvider>
@@ -67,11 +136,13 @@ export default function MarineDashboard() {
         >
           {/* Left column: Our Events (top quarter) over Local Events (bottom three quarters) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22, minHeight: 0, minWidth: 0 }}>
-            <OurEventsPanel theme={theme} />
+            <div onMouseEnter={reveal} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <OurEventsPanel theme={theme} />
+            </div>
             <LocalEventsPanel theme={theme} />
           </div>
 
-          {/* Center + right: live panels <-> calendar view, crossfading */}
+          {/* Center + right: live panels, with the calendar fading in over them on demand */}
           <div style={{ gridColumn: '2 / 4', position: 'relative', minHeight: 0, minWidth: 0 }}>
             <div
               style={{
@@ -101,6 +172,9 @@ export default function MarineDashboard() {
               </div>
             </div>
             <div
+              ref={calendarRef}
+              onMouseEnter={onCalendarEnter}
+              onMouseLeave={onCalendarLeave}
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -110,7 +184,7 @@ export default function MarineDashboard() {
               }}
               aria-hidden={!showCalendar}
             >
-              <CalendarView theme={theme} />
+              <CalendarView theme={theme} active={showCalendar} />
             </div>
           </div>
 

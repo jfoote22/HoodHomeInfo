@@ -9,7 +9,7 @@ Designed for a 16:9 TV at 1920×1080 and scales to fit any screen.
 | **Marine Map** (center) | Real map of Hood Canal + Puget Sound with whale sighting pins from the last 7 days (recent ones pulse), clock, LIVE count, tide direction | [Acartia](https://acartia.io) open sightings feed (Orca Network / Whale Alert data), CARTO tiles |
 | **Weather & Tides** (right‑top) | Current conditions, 4‑step forecast strip, interpolated tide curve with next high/low and "now" dot | OpenWeatherMap (`NEXT_PUBLIC_WEATHER_API_KEY`), NOAA CO‑OPS station **9445478 Union, Hood Canal** |
 | **Our Events** (left‑top) | The household calendar (bravefoote@gmail): next entries; matching local events are marked GOING | Google Calendar (service account) · Hermes `ourEvents` · ICS feed |
-| **Calendar view** (rotates with the live panels every 30 s; `?rotate=0` to disable, `?view=calendar` to start there) | 3‑week grid of our events + local events | same feeds |
+| **Calendar view** (fades in over the live panels when you hover Our Events; stays while you're using it, fades out 10 s after the mouse goes idle; `?view=calendar` pins it on) | Google Calendar's own embed UI for the household calendar (must be public to show on the kiosk) | Google Calendar embed (`NEXT_PUBLIC_OUR_CALENDAR_ID`) |
 | **Local Events** (left) | Next upcoming events around Union / Belfair / Hood Canal | **Hermes** (the local agent's "Local WA Events" page, `HERMES_EVENTS_URL`) as the primary source, merged with North Mason Chamber + Explore Hood Canal; optional `data/hermes-events.json` |
 
 Two approved themes from the design handoff — **Command Center** (dark, default) and **Daylight Glass** (light). Toggle with the tiny button bottom‑right, or pin one in the URL: `/?theme=daylight-glass`.
