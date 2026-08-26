@@ -68,7 +68,7 @@ function BasesDiamond({ runners, accent }: { runners: MlbLiveGame['runners']; ac
   const off = 'rgba(255,255,255,.14)';
   const stroke = 'rgba(255,255,255,.35)';
   return (
-    <svg width="34" height="31" viewBox="0 0 44 40" aria-hidden>
+    <svg width="34" height="25" viewBox="6 -2 44 32" style={{ overflow: 'visible' }} aria-hidden>
       <rect x="22" y="2" width="12" height="12" transform="rotate(45 28 8)" fill={runners.second ? on : off} stroke={stroke} strokeWidth="1" />
       <rect x="34" y="14" width="12" height="12" transform="rotate(45 40 20)" fill={runners.first ? on : off} stroke={stroke} strokeWidth="1" />
       <rect x="10" y="14" width="12" height="12" transform="rotate(45 16 20)" fill={runners.third ? on : off} stroke={stroke} strokeWidth="1" />
