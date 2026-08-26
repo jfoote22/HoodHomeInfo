@@ -375,6 +375,13 @@ button, select, input {
   100% { transform: scale(2.3); opacity: 0; }
 }
 
+/* Dark theme basemap: Esri's gray canvas tiles (no API key needed, unlike CARTO's dark tiles)
+   dimmed and pushed to navy - sepia gives the gray a hue to rotate into blue. Only the tile
+   images carry this class, so the whale pins above them are unaffected. */
+.hh-dark-tiles {
+  filter: brightness(0.55) sepia(0.9) hue-rotate(185deg) saturate(1.7) contrast(1.1);
+}
+
 /* The dashboard's own map tiles/popups run dark or light per theme, independent of the
    legacy .leaflet-container dark override above. */
 .leaflet-container {

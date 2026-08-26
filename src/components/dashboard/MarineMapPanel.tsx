@@ -133,6 +133,7 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
           url={tileUrl}
           attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, HERE, Garmin, OpenStreetMap contributors · sightings <a href="https://acartia.io">Acartia</a>'
           maxNativeZoom={16}
+          className={theme.isLight ? undefined : 'hh-dark-tiles'}
         />
         <Marker position={UNION_WA} icon={unionIcon(theme.map.accentB, theme.map.ink)}>
           <Popup>Union, WA</Popup>
