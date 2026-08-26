@@ -82,9 +82,11 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
   const { sightings, last24h, isPlaceholder } = sightingsState;
   const [map, setMap] = useState<LeafletMap | null>(null);
 
+  // Esri's gray canvas basemaps need no API key from any origin (CARTO's free tiles refuse
+  // requests from LAN addresses like the MacBook's IP). Note Esri's {y}/{x} order.
   const tileUrl = theme.isLight
-    ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    ? 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+    : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
 
   // Three newest sightings, numbered 1-3 both in the box and on their map pins.
   const latest = useMemo(() => [...sightings].sort((a, b) => a.hoursAgo - b.hoursAgo).slice(0, 3), [sightings]);
@@ -129,7 +131,8 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
         <FitBoundsOnce onReady={setMap} />
         <TileLayer
           url={tileUrl}
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> · sightings <a href="https://acartia.io">Acartia</a>'
+          attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, HERE, Garmin, OpenStreetMap contributors · sightings <a href="https://acartia.io">Acartia</a>'
+          maxNativeZoom={16}
         />
         <Marker position={UNION_WA} icon={unionIcon(theme.map.accentB, theme.map.ink)}>
           <Popup>Union, WA</Popup>
