@@ -148,17 +148,17 @@ function LiveMarinersBody({ game, b }: { game: MlbLiveGame; b: (typeof BRAND)['m
           </div>
           <div>
             <div style={label}>Pitching</div>
-            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{game.pitcher?.name || '—'}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {game.pitcher?.name || '—'}
+              {game.pitcher?.season ? <span style={{ fontFamily: mono, fontSize: 10, fontWeight: 400, color: b.highlight }}> · {game.pitcher.season}</span> : null}
+            </div>
             {game.pitcher && (() => {
               const parts = game.pitcher.line.split(' · ');
               const row: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, color: 'rgba(255,255,255,.65)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 };
               return (
                 <>
                   <div style={row}>{parts.slice(0, 3).join(' · ')}</div>
-                  <div style={row}>
-                    {parts.slice(3).join(' · ')}
-                    {game.pitcher.season ? <span style={{ color: b.highlight }}> · {game.pitcher.season}</span> : null}
-                  </div>
+                  <div style={row}>{parts.slice(3).join(' · ')}</div>
                 </>
               );
             })()}
