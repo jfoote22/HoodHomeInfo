@@ -62,6 +62,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const messages: ClientMessage[] = Array.isArray(body?.messages) ? body.messages : [];
     const liveContext = typeof body?.context === "string" && body.context.trim() ? body.context.trim() : null;
+    const eventsContext = typeof body?.events === "string" && body.events.trim() ? body.events.trim().slice(0, 12000) : null;
     const webSearch = body?.webSearch !== false; // on unless the client opts out
 
     const clientSystem = messages.find((m) => m.role === "system")?.content;
@@ -69,6 +70,9 @@ export async function POST(req: Request) {
       clientSystem || BASE_INSTRUCTIONS,
       liveContext
         ? `LIVE CONDITIONS RIGHT NOW (from the dashboard's weather, NOAA tide, and whale-sighting feeds - treat as ground truth):\n${liveContext}`
+        : null,
+      eventsContext
+        ? `EVENTS ON THE DASHBOARD (the household's own Google Calendar, then the local listings the dashboard shows - treat as ground truth and answer questions about plans, dates, and what's happening nearby from this list before searching the web):\n${eventsContext}`
         : null,
       `Current date/time in Union, WA: ${new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles", dateStyle: "full", timeStyle: "short" })}.`,
     ]

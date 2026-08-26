@@ -89,3 +89,32 @@ export function buildBriefing(data: DashboardData): string {
   }
   return parts.join(' ');
 }
+
+const MAX_LOCAL_FOR_AI = 40;
+
+/** Every event both panels know about, one line each, so the AI can answer questions about
+ *  the household calendar and the local listings instead of guessing or web-searching. */
+export function buildEventsContext(data: DashboardData): string {
+  const { events, ourEvents } = data;
+  const day = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' });
+  const blocks: string[] = [];
+
+  const ours = ourEvents?.events?.filter((e) => e.start.getTime() > Date.now() - 3600000) || [];
+  blocks.push(
+    ours.length
+      ? `OUR CALENDAR (${ourEvents.calendar || 'household Google Calendar'}):\n` +
+          ours.map((e) => `- ${e.title} — ${day(e.start)}, ${e.timeLabel}${e.location ? `, ${e.location}` : ''}`).join('\n')
+      : 'OUR CALENDAR: nothing upcoming.',
+  );
+
+  const local = events?.isPlaceholder ? [] : events?.events?.slice(0, MAX_LOCAL_FOR_AI) || [];
+  if (local.length) {
+    const more = (events?.events?.length || 0) - local.length;
+    blocks.push(
+      `LOCAL EVENTS around Hood Canal / Belfair / Union / Bremerton (${events.events.length} listed):\n` +
+        local.map((e) => `- ${e.title} — ${e.dateLabel}`).join('\n') +
+        (more > 0 ? `\n(+${more} more not shown)` : ''),
+    );
+  }
+  return blocks.join('\n\n');
+}

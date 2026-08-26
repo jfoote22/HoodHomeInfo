@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from 'ai/react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
-import { useDashboardData, buildBriefing } from './DashboardDataContext';
+import { useDashboardData, buildBriefing, buildEventsContext } from './DashboardDataContext';
 
 export default function AIVoiceAgentPanel({ theme, compact = false }: { theme: DashboardTheme; compact?: boolean }) {
   // compact: bottom-right slot (~428x490) instead of the full-height left column.
@@ -19,11 +19,14 @@ export default function AIVoiceAgentPanel({ theme, compact = false }: { theme: D
   const briefing = useMemo(() => buildBriefing(data), [data]);
   const briefingRef = useRef(briefing);
   briefingRef.current = briefing;
+  // The full Our Events + Local Events lists ride along with every question (the briefing
+  // above only names the next two calendar entries, which is all the idle display has room for).
+  const eventsContext = useMemo(() => buildEventsContext(data), [data]);
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
     api: '/api/grok/chat',
     initialMessages: [],
-    body: { context: briefing },
+    body: { context: briefing, events: eventsContext },
   });
 
   // After an answer has been on screen for a while, drift back to the live briefing so
