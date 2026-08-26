@@ -1,7 +1,9 @@
 'use client';
 
+import React from 'react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { useSportsTeam, GameSummary, NewsItem } from '../../lib/hooks/useSportsTeam';
+import { useMlbLive, MlbLiveGame } from '../../lib/hooks/useMlbLive';
 
 // Brand palettes (official-ish). ESPN also sends color/altColor but these read better on the TV.
 const BRAND = {
@@ -61,8 +63,157 @@ function relDay(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: tz });
 }
 
+function BasesDiamond({ runners, accent }: { runners: MlbLiveGame['runners']; accent: string }) {
+  const on = accent;
+  const off = 'rgba(255,255,255,.14)';
+  const stroke = 'rgba(255,255,255,.35)';
+  return (
+    <svg width="34" height="31" viewBox="0 0 44 40" aria-hidden>
+      <rect x="22" y="2" width="12" height="12" transform="rotate(45 28 8)" fill={runners.second ? on : off} stroke={stroke} strokeWidth="1" />
+      <rect x="34" y="14" width="12" height="12" transform="rotate(45 40 20)" fill={runners.first ? on : off} stroke={stroke} strokeWidth="1" />
+      <rect x="10" y="14" width="12" height="12" transform="rotate(45 16 20)" fill={runners.third ? on : off} stroke={stroke} strokeWidth="1" />
+    </svg>
+  );
+}
+
+function OutsDots({ outs }: { outs: number }) {
+  return (
+    <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+      {[0, 1, 2].map((i) => (
+        <span key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: i < outs ? '#fbbf24' : 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.35)' }} />
+      ))}
+    </span>
+  );
+}
+
+/** Mariners panel body while a game is in progress (MLB Stats API). */
+function LiveMarinersBody({ game, b }: { game: MlbLiveGame; b: (typeof BRAND)['mariners'] }) {
+  const mono = FONT_FAMILIES.mono;
+  const label: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, letterSpacing: '.18em', color: 'rgba(255,255,255,.6)', textTransform: 'uppercase' };
+  const half = game.inningState === 'Top' ? '▲' : game.inningState === 'Bottom' ? '▼' : game.inningState === 'Middle' ? 'MID' : 'END';
+  const sides = [game.away, game.home];
+  const innings = game.innings.length >= 9 ? game.innings : [...game.innings, ...Array.from({ length: 9 - game.innings.length }, (_, i) => ({ num: game.innings.length + i + 1, away: null, home: null }))];
+  const cell: React.CSSProperties = { fontFamily: mono, fontSize: 10, textAlign: 'center', padding: '1px 0', minWidth: 0 };
+  const batting = game.isTop ? game.away : game.home;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, position: 'relative' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr 1.1fr', gap: 12, flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        {/* Score + situation */}
+        <div style={{ background: 'rgba(0,0,0,.22)', border: `1px solid ${b.accent}`, borderRadius: 14, padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ ...label, color: b.accent, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', animation: 'dashboardBlink 1.6s infinite' }} />
+              Live
+            </span>
+            <span style={{ fontFamily: mono, fontSize: 11, color: '#fff', fontWeight: 700 }}>
+              {half} {game.inningOrdinal}
+            </span>
+          </div>
+          {sides.map((s) => (
+            <div key={s.abbrev} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontFamily: mono, fontSize: 12, fontWeight: 700, letterSpacing: '.08em', color: s.isUs ? '#fff' : 'rgba(255,255,255,.7)' }}>
+                {s === batting ? '› ' : '  '}
+                {s.abbrev}
+              </span>
+              <span style={{ fontFamily: FONT_FAMILIES.display, fontWeight: 700, fontSize: 24, lineHeight: 0.9, color: s.isUs ? '#fff' : 'rgba(255,255,255,.8)' }}>{s.runs}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
+            <BasesDiamond runners={game.runners} accent="#fbbf24" />
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontFamily: mono, fontSize: 13, fontWeight: 700, lineHeight: 1.1 }}>
+                {game.balls}-{game.strikes}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
+                <span style={{ ...label, fontSize: 9 }}>Out</span>
+                <OutsDots outs={game.outs} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Matchup */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
+          <div>
+            <div style={label}>At bat</div>
+            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{game.batter?.name || '—'}</div>
+            <div style={{ fontFamily: mono, fontSize: 10, color: 'rgba(255,255,255,.65)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {game.batter ? [game.batter.line, game.batter.season].filter(Boolean).join(' · ') : ''}
+            </div>
+          </div>
+          <div style={{ fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'rgba(255,255,255,.85)' }}>
+            <span style={{ ...label, fontSize: 9 }}>On deck </span>
+            {game.onDeck || '—'}
+          </div>
+          <div>
+            <div style={label}>Pitching</div>
+            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{game.pitcher?.name || '—'}</div>
+            {game.pitcher && (() => {
+              const parts = game.pitcher.line.split(' · ');
+              const row: React.CSSProperties = { fontFamily: mono, fontSize: 9.5, color: 'rgba(255,255,255,.65)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 };
+              return (
+                <>
+                  <div style={row}>{parts.slice(0, 3).join(' · ')}</div>
+                  <div style={row}>
+                    {parts.slice(3).join(' · ')}
+                    {game.pitcher.season ? <span style={{ color: b.highlight }}> · {game.pitcher.season}</span> : null}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Play by play */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
+          <div style={label}>Last plays</div>
+          {game.lastPlays.slice(0, 3).map((p, i) => (
+            <div key={i} style={{ display: 'flex', gap: 7, alignItems: 'flex-start', opacity: i === 0 ? 1 : 0.7 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: i === 0 ? '#4ade80' : b.highlight, marginTop: 5, flexShrink: 0 }} />
+              <div style={{ fontSize: 11.5, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p}</div>
+            </div>
+          ))}
+          {game.lastPlays.length === 0 && <div style={{ fontFamily: mono, fontSize: 11, color: 'rgba(255,255,255,.5)' }}>Waiting for first pitch…</div>}
+        </div>
+      </div>
+
+      {/* Linescore */}
+      <div style={{ display: 'grid', gridTemplateColumns: `34px repeat(${innings.length}, 1fr) 6px repeat(3, 1.2fr)`, gap: 2, alignItems: 'center', borderTop: '1px solid rgba(255,255,255,.1)', paddingTop: 4, flexShrink: 0 }}>
+        <span />
+        {innings.map((i) => (
+          <span key={i.num} style={{ ...cell, color: i.num === game.inning ? '#fff' : 'rgba(255,255,255,.45)' }}>{i.num}</span>
+        ))}
+        <span />
+        {['R', 'H', 'E'].map((h) => (
+          <span key={h} style={{ ...cell, color: 'rgba(255,255,255,.45)' }}>{h}</span>
+        ))}
+        {sides.map((s) => (
+          <React.Fragment key={s.abbrev}>
+            <span style={{ ...cell, textAlign: 'left', fontWeight: 700, color: s.isUs ? '#fff' : 'rgba(255,255,255,.7)' }}>{s.abbrev}</span>
+            {innings.map((i) => {
+              const v = s === game.away ? i.away : i.home;
+              return (
+                <span key={i.num} style={{ ...cell, color: v ? '#fff' : 'rgba(255,255,255,.55)' }}>
+                  {v === null || v === undefined ? '' : v}
+                </span>
+              );
+            })}
+            <span />
+            <span style={{ ...cell, fontWeight: 700 }}>{s.runs}</span>
+            <span style={cell}>{s.hits}</span>
+            <span style={cell}>{s.errors}</span>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SportsPanel({ team, theme }: { team: 'mariners' | 'seahawks'; theme: DashboardTheme }) {
   const { data, error } = useSportsTeam(team);
+  const mlb = useMlbLive(team === 'mariners');
+  const mlbGame = team === 'mariners' && mlb?.live && mlb.game ? mlb.game : null;
   const b = BRAND[team];
   const mono = FONT_FAMILIES.mono;
   const isLive = Boolean(data?.liveGame);
@@ -114,7 +265,10 @@ export default function SportsPanel({ team, theme }: { team: 'mariners' | 'seaha
         </div>
       </div>
 
-      {/* Body: featured game | schedule | news */}
+      {/* Body: live game (MLB feed) | featured game + schedule + news */}
+      {mlbGame ? (
+        <LiveMarinersBody game={mlbGame} b={BRAND.mariners} />
+      ) : (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.95fr 1.2fr', gap: 14, flex: 1, minHeight: 0, position: 'relative' }}>
         {/* Featured: live or last result */}
         <div style={{ background: 'rgba(0,0,0,.22)', border: `1px solid ${isLive ? b.accent : 'rgba(255,255,255,.1)'}`, borderRadius: 14, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
@@ -193,10 +347,11 @@ export default function SportsPanel({ team, theme }: { team: 'mariners' | 'seaha
           {data && headlines.length === 0 && <div style={{ fontFamily: mono, fontSize: 11, color: 'rgba(255,255,255,.5)' }}>No recent news</div>}
         </div>
       </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: mono, fontSize: 9.5, color: 'rgba(255,255,255,.45)', letterSpacing: '.05em', position: 'relative' }}>
         <span>{data ? `Home ${data.homeRecord || '–'} · Road ${data.roadRecord || '–'}` : ''}</span>
-        <span>ESPN · auto-updating</span>
+        <span>{mlbGame ? 'MLB · live every 20s' : 'ESPN · auto-updating'}</span>
       </div>
     </div>
   );
