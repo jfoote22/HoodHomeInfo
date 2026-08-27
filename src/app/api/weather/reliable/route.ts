@@ -35,6 +35,16 @@ async function reliableFetch(url: string, options: RequestInit = {}, maxRetries 
   throw lastError;
 }
 
+// Built-in OpenWeatherMap key used when NEXT_PUBLIC_WEATHER_API_KEY is unset - or is still the
+// placeholder copied from .env.local.example, which OpenWeather rejects with a 401 and would
+// otherwise silently push the panel onto fallback data.
+const BUILT_IN_KEY = '210dd970bfe8fb78e5bb5f8573c4716f';
+function weatherApiKey(): string {
+  const k = (process.env.NEXT_PUBLIC_WEATHER_API_KEY || '').trim();
+  const placeholder = !k || k.length < 20 || /your[_-]|_here$|placeholder|changeme|xxxx/i.test(k);
+  return placeholder ? BUILT_IN_KEY : k;
+}
+
 function generateFallbackWeatherData() {
   const conditions = ['Clear', 'Partly Cloudy', 'Cloudy', 'Light Rain'];
   
@@ -89,8 +99,9 @@ export async function GET(request: Request) {
     console.log(`Fetching reliable weather data for coordinates ${lat}, ${lon}`);
     
     let weatherData;
+    let usedFallback = false;
     try {
-      const apiKey = process.env.NEXT_PUBLIC_WEATHER_API_KEY || '210dd970bfe8fb78e5bb5f8573c4716f';
+      const apiKey = weatherApiKey();
       
       // Try current weather
       const currentWeather = await reliableFetch(
@@ -108,6 +119,7 @@ export async function GET(request: Request) {
     } catch (error) {
       console.error('Weather API failed, generating fallback data:', error);
       weatherData = generateFallbackWeatherData();
+      usedFallback = true;
     }
     
     // Transform current weather data
@@ -152,7 +164,8 @@ export async function GET(request: Request) {
       forecast,
       hourly,
       location: 'Union, WA',
-      isReliable: true,
+      // false = the numbers above are synthetic placeholders, not a real observation
+      isReliable: !usedFallback,
       lastUpdated: new Date().toISOString()
     };
 

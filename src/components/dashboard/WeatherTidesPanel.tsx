@@ -46,7 +46,14 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         </div>
         <MoonPhaseBadge theme={theme} now={now} />
         <div style={{ textAlign: 'right', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          <div style={{ fontSize: 17, color: theme.bodySecondary, fontWeight: 600 }}>{weather?.condition || '—'}</div>
+          <div style={{ fontSize: 17, color: theme.bodySecondary, fontWeight: 600 }}>
+            {weather?.condition || '—'}
+            {weather?.isFallback && (
+              <span title="OpenWeather could not be reached; these are placeholder values" style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 10, fontWeight: 400, letterSpacing: '.12em', color: theme.accentB, marginLeft: 8, textTransform: 'uppercase' }}>
+                Estimated
+              </span>
+            )}
+          </div>
           <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 13, color: theme.muted }}>
             H {weather ? Math.round(weather.hiF) : '--'}° · L {weather ? Math.round(weather.loF) : '--'}°
           </div>
