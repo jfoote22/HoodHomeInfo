@@ -24,7 +24,7 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         padding: 24,
         display: 'flex',
         flexDirection: 'column',
-        gap: 14,
+        gap: 11,
         fontFamily: FONT_FAMILIES.body,
         minHeight: 0,
       }}
@@ -36,17 +36,34 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         <span style={{ fontSize: 13, color: theme.muted }}>Union, WA</span>
       </div>
 
-      {/* Today - the hero */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          <WeatherIcon icon={weather?.icon || 'sun'} size={52} theme={theme} />
-          <span style={{ fontFamily: FONT_FAMILIES.display, fontWeight: 700, fontSize: 74, lineHeight: 0.8, color: theme.text }}>
-            {weather ? Math.round(weather.tempF) : '--'}°
-          </span>
+      {/* Today - the hero. Two rows: the big reading, then the words. NWS conditions can be
+          long ("Slight Chance Light Rain"), so the text row is the one that flexes. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            <WeatherIcon icon={weather?.icon || 'sun'} size={48} theme={theme} />
+            <span style={{ fontFamily: FONT_FAMILIES.display, fontWeight: 700, fontSize: 64, lineHeight: 0.85, color: theme.text }}>
+              {weather ? Math.round(weather.tempF) : '--'}°
+            </span>
+          </div>
+          <MoonPhaseBadge theme={theme} now={now} />
         </div>
-        <MoonPhaseBadge theme={theme} now={now} />
-        <div style={{ textAlign: 'right', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          <div style={{ fontSize: 17, color: theme.bodySecondary, fontWeight: 600 }}>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div
+            style={{
+              fontSize: 16,
+              color: theme.bodySecondary,
+              fontWeight: 600,
+              lineHeight: 1.2,
+              minWidth: 0,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+            title={weather?.condition || undefined}
+          >
             {weather?.condition || '—'}
             {weather?.isFallback && (
               <span title="OpenWeather could not be reached; these are placeholder values" style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 10, fontWeight: 400, letterSpacing: '.12em', color: theme.accentB, marginLeft: 8, textTransform: 'uppercase' }}>
@@ -54,11 +71,13 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
               </span>
             )}
           </div>
-          <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 13, color: theme.muted }}>
-            H {weather ? Math.round(weather.hiF) : '--'}° · L {weather ? Math.round(weather.loF) : '--'}°
-          </div>
-          <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 13, color: theme.muted, marginTop: 3 }}>
-            Wind {weather?.windMph ?? '--'}mph {weather?.windDir ?? ''}
+          <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 12.5, color: theme.muted, whiteSpace: 'nowrap', flexShrink: 0, textAlign: 'right', lineHeight: 1.45 }}>
+            <div>
+              H {weather ? Math.round(weather.hiF) : '--'}° · L {weather ? Math.round(weather.loF) : '--'}°
+            </div>
+            <div>
+              Wind {weather?.windMph ?? '--'}mph {weather?.windDir ?? ''}
+            </div>
           </div>
         </div>
       </div>
@@ -114,7 +133,7 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.muted }}>next 3 days</span>
       </div>
 
-      <svg viewBox={`0 0 ${viewW} ${viewH}`} style={{ width: '100%', height: 112, overflow: 'visible' }}>
+      <svg viewBox={`0 0 ${viewW} ${viewH}`} style={{ width: '100%', height: 104, overflow: 'visible' }}>
         <defs>
           <linearGradient id="tideGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={theme.accentA} stopOpacity={theme.isLight ? 0.3 : 0.38} />
