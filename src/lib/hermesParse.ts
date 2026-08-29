@@ -26,6 +26,8 @@ export interface HermesItem {
   description: string | null;
   /** true when the card sits under the calendar section (Bravefoote Calendar) */
   isCalendar: boolean;
+  /** true when the card sits under the weather section ("Union Wa Weather") - not an event */
+  isWeather: boolean;
   /** index of this occurrence when a card lists several dates */
   occurrence: number;
 }
@@ -36,6 +38,7 @@ const DATE_TOKEN = new RegExp(`^(?:${DOW},?\\s+)?(${MON})\\.?\\s+(\\d{1,2})(?:,\
 const TIME_TOKEN = /(\d{1,2})(?::(\d{2}))?\s*([AaPp])\.?[Mm]?\.?/;
 const MONTHS: Record<string, number> = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
 const CALENDAR_SECTION = /bravefoote|our calendar|calendar events|gmail/i;
+const WEATHER_SECTION = /weather|forecast|current conditions/i;
 
 export function hermesYear(html: string): number {
   const m = html.match(/Window:[^<]*?(\d{4})/) || html.match(/(\d{4})-\d{2}-\d{2}/);
@@ -150,6 +153,7 @@ export function parseHermesHtml(body: string): HermesItem[] {
     const venue = whereParts[0] || null;
     const cityFromWhere = whereParts.length > 1 ? whereParts[whereParts.length - 1].replace(/\s*WA.*$/i, '').trim() : null;
     const isCalendarCard = isCalendar || /^calendar$/i.test(cat || '');
+    const isWeatherCard = WEATHER_SECTION.test(sectionTitle) || /^weather$/i.test(cat || '');
     occurrences.forEach(({ start, end, allDay }, i) => {
       out.push({
         title,
@@ -162,6 +166,7 @@ export function parseHermesHtml(body: string): HermesItem[] {
         url: link && /^https?:/i.test(link) ? link : null,
         description,
         isCalendar: isCalendarCard,
+        isWeather: isWeatherCard,
         occurrence: i,
       });
     });
@@ -171,4 +176,105 @@ export function parseHermesHtml(body: string): HermesItem[] {
 
 export function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+// ---------------------------------------------------------------------------
+// Weather (Hermes "Union Wa Weather" section, sourced from the National Weather
+// Service). Cards look like:
+//   * Union current temperature        -> "53F, Slight Chance Light Rain, wind 3 mph"
+//   * Union forecast: Today|Sunday|... -> "64F, Mostly Sunny. Mostly sunny, with a high near 64. ..."
+// (the F is preceded by a degree sign in the real page)
+// ---------------------------------------------------------------------------
+
+export interface HermesWeatherNow {
+  tempF: number;
+  condition: string;
+  windMph: number | null;
+  windDir: string | null;
+  observedAt: Date | null;
+}
+
+export interface HermesWeatherDay {
+  /** the day the forecast is for */
+  date: Date;
+  /** "Today" / "Sunday" as Hermes labelled it */
+  label: string;
+  hiF: number;
+  condition: string;
+}
+
+export interface HermesWeather {
+  now: HermesWeatherNow | null;
+  days: HermesWeatherDay[];
+}
+
+/** Icon key matching the dashboard's weatherIcons set, from NWS condition text. */
+export function weatherTextToIcon(text: string): string {
+  const t = text.toLowerCase();
+  if (/thunder|t-storm/.test(t)) return 'cloud-lightning';
+  if (/snow|flurr|sleet|wintry/.test(t)) return 'cloud-snow';
+  if (/rain|shower|drizzle/.test(t)) return 'cloud-rain';
+  if (/fog|haze|mist|smoke/.test(t)) return 'cloud-fog';
+  if (/overcast|mostly cloudy|cloudy/.test(t)) return 'cloud';
+  if (/partly (sunny|cloudy)|mostly sunny|sunny|clear|fair/.test(t)) return 'sun';
+  return 'sun';
+}
+
+const DIR_WORD: Record<string, string> = { north: 'N', south: 'S', east: 'E', west: 'W', northeast: 'NE', northwest: 'NW', southeast: 'SE', southwest: 'SW' };
+const DIR_RE = /\b((?:north|south|east|west|northeast|northwest|southeast|southwest)(?:\s+(?:north|south|east|west|northeast|northwest|southeast|southwest))?)\s+wind\b/i;
+const TEMP_RE = /(-?\d{1,3})\s*(?:\u00b0|deg(?:rees)?)?\s*F\b/i;
+const WIND_RE = /wind\s+(?:[a-z\s]*?\s)?(\d{1,3})(?:\s*(?:to|-|\u2013)\s*\d{1,3})?\s*mph/i;
+
+/** "West southwest wind 3 to 13 mph" -> "WSW" */
+function windDirection(text: string): string | null {
+  const m = text.match(DIR_RE);
+  if (!m) return null;
+  const dir = m[1]
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => DIR_WORD[w] || '')
+    .join('');
+  return dir ? dir.slice(0, 3) : null;
+}
+
+function tempOf(text: string): number | null {
+  const m = text.match(TEMP_RE);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/** Text after the temperature, up to the first sentence end: the short condition. */
+function conditionOf(text: string): string {
+  const after = text.replace(/^[^,]*?F\s*,?\s*/i, '');
+  const short = after.split(/\.\s|\.$/)[0].split(/,\s*wind\b/i)[0];
+  return short.trim().replace(/\s+/g, ' ').slice(0, 60) || 'Clear';
+}
+
+/** Pull the current conditions + 3-day forecast out of a Hermes page. */
+export function parseHermesWeather(body: string): HermesWeather {
+  const items = parseHermesHtml(body).filter((i) => i.isWeather);
+  let now: HermesWeatherNow | null = null;
+  const days: HermesWeatherDay[] = [];
+
+  for (const it of items) {
+    const text = (it.description || '').replace(/\s+/g, ' ').trim();
+    const temp = tempOf(text);
+    if (temp === null) continue;
+    const isCurrent = /current|now|conditions/i.test(it.title) && !/forecast/i.test(it.title);
+    if (isCurrent) {
+      if (!now) {
+        const windMatch = text.match(WIND_RE);
+        now = { tempF: temp, condition: conditionOf(text), windMph: windMatch ? parseInt(windMatch[1], 10) : null, windDir: windDirection(text), observedAt: it.start };
+      }
+    } else {
+      const label = (it.title.split(/forecast:\s*/i)[1] || it.title).trim();
+      days.push({ date: it.start, label, hiF: temp, condition: conditionOf(text) });
+    }
+  }
+  days.sort((a, b) => a.date.getTime() - b.date.getTime());
+  // Today's forecast text carries the wind direction the current card omits.
+  if (now && !now.windDir) {
+    const todayText = items.find((i) => /forecast/i.test(i.title))?.description || '';
+    now.windDir = windDirection(todayText);
+  }
+  return { now, days };
 }

@@ -1,5 +1,54 @@
 import { NextResponse } from 'next/server';
 import { dayKey, hourLabel, DASHBOARD_TZ } from '../../../../lib/time';
+import { parseHermesWeather, weatherTextToIcon, type HermesWeather } from '../../../../lib/hermesParse';
+import { loadHermesDocument } from '../../../../lib/hermesStore';
+
+const HERMES_EVENTS_URL = (process.env.HERMES_EVENTS_URL || '').trim();
+
+/**
+ * Hermes (the local agent) publishes a "Union Wa Weather" section on its page - current
+ * conditions and a 3-day forecast straight from the National Weather Service for Union.
+ * That is a better local reading than OpenWeatherMap's grid cell, so it wins when present.
+ */
+async function loadHermesWeather(): Promise<HermesWeather | null> {
+  const parse = (html: string) => {
+    const w = parseHermesWeather(html);
+    return w.now || w.days.length ? w : null;
+  };
+  try {
+    const doc = await loadHermesDocument();
+    if (doc) {
+      if (doc.kind === 'html') {
+        const w = parse(doc.body);
+        if (w) return w;
+      } else {
+        try {
+          const parsed = JSON.parse(doc.body);
+          if (typeof parsed.html === 'string') {
+            const w = parse(parsed.html);
+            if (w) return w;
+          }
+        } catch {
+          /* not JSON we understand */
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('weather: hermes document unreadable', err);
+  }
+  if (HERMES_EVENTS_URL) {
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(HERMES_EVENTS_URL, { cache: 'no-store', signal: controller.signal });
+      clearTimeout(t);
+      if (res.ok) return parse(await res.text());
+    } catch {
+      /* LAN page not reachable from here - fine */
+    }
+  }
+  return null;
+}
 
 async function reliableFetch(url: string, options: RequestInit = {}, maxRetries = 3) {
   let lastError: Error = new Error('Unknown error');
@@ -98,6 +147,9 @@ export async function GET(request: Request) {
 
     console.log(`Fetching reliable weather data for coordinates ${lat}, ${lon}`);
     
+    // Hermes runs on the LAN and answers fast; fetch it alongside OpenWeatherMap.
+    const hermesPromise = loadHermesWeather();
+
     let weatherData;
     let usedFallback = false;
     try {
@@ -159,13 +211,58 @@ export async function GET(request: Request) {
         };
       });
 
+    // Overlay the National Weather Service numbers Hermes publishes for Union: they are the
+    // local observation, so they win for the headline conditions and the daily highs.
+    let hermes: HermesWeather | null = null;
+    try {
+      hermes = await hermesPromise;
+    } catch {
+      hermes = null;
+    }
+
+    let hourlyOut = hourly;
+    let forecastOut = forecast;
+    if (hermes?.now) {
+      current.temp = hermes.now.tempF;
+      current.condition = hermes.now.condition;
+      current.icon = weatherTextToIcon(hermes.now.condition);
+      if (hermes.now.windMph !== null) current.windSpeed = hermes.now.windMph;
+      if (hermes.now.windDir) current.windDirection = hermes.now.windDir;
+    }
+    if (hermes?.days.length) {
+      const shortDay = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', timeZone: DASHBOARD_TZ });
+      if (usedFallback) {
+        // OpenWeatherMap is unavailable: show only what the NWS actually told us rather than
+        // OpenWeather's synthetic fill-ins (no invented lows, no invented hourly points).
+        forecastOut = hermes.days.map((d) => ({
+          day: shortDay(d.date),
+          temp: { min: d.hiF, max: d.hiF },
+          condition: d.condition,
+          icon: weatherTextToIcon(d.condition),
+          weatherId: 800
+        }));
+        hourlyOut = [];
+      } else {
+        const byDay = new Map(hermes.days.map((d) => [shortDay(d.date), d]));
+        forecastOut = forecast.map((f: any) => {
+          const h = byDay.get(f.day);
+          if (!h) return f;
+          return { ...f, temp: { ...f.temp, max: h.hiF }, condition: h.condition, icon: weatherTextToIcon(h.condition) };
+        });
+      }
+    }
+
+    // Synthetic only when neither source could be reached.
+    const isReliable = !usedFallback || Boolean(hermes?.now);
+
     const response = {
       current,
-      forecast,
-      hourly,
+      forecast: forecastOut,
+      hourly: hourlyOut,
       location: 'Union, WA',
       // false = the numbers above are synthetic placeholders, not a real observation
-      isReliable: !usedFallback,
+      isReliable,
+      weatherSource: hermes?.now ? (usedFallback ? 'hermes-nws' : 'hermes-nws+openweather') : usedFallback ? 'fallback' : 'openweather',
       lastUpdated: new Date().toISOString()
     };
 
