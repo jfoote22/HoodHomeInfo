@@ -10,6 +10,7 @@ import SportsPanel from './SportsPanel';
 import OurEventsPanel from './OurEventsPanel';
 import CalendarView from './CalendarView';
 import KioskBehaviors from './KioskBehaviors';
+import StockTicker, { TICKER_HEIGHT } from './StockTicker';
 import { DashboardDataProvider } from './DashboardDataContext';
 import { useDashboardTheme } from './DashboardThemeContext';
 import { FONT_FAMILIES } from './theme';
@@ -125,6 +126,8 @@ export default function MarineDashboard() {
             background: theme.screenBg,
             display: 'grid',
             gridTemplateColumns: '392px 1fr 428px',
+            // Panels on top, the market ticker across the bottom.
+            gridTemplateRows: `1fr ${TICKER_HEIGHT}px`,
             gap: 22,
             padding: 26,
             color: theme.text,
@@ -135,7 +138,7 @@ export default function MarineDashboard() {
           }}
         >
           {/* Left column: Our Events (top quarter) over Local Events (bottom three quarters) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 22, minHeight: 0, minWidth: 0 }}>
+          <div style={{ gridRow: 1, display: 'flex', flexDirection: 'column', gap: 22, minHeight: 0, minWidth: 0 }}>
             <div onMouseEnter={reveal} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
               <OurEventsPanel theme={theme} />
             </div>
@@ -143,7 +146,7 @@ export default function MarineDashboard() {
           </div>
 
           {/* Center + right: live panels, with the calendar fading in over them on demand */}
-          <div style={{ gridColumn: '2 / 4', position: 'relative', minHeight: 0, minWidth: 0 }}>
+          <div style={{ gridColumn: '2 / 4', gridRow: 1, position: 'relative', minHeight: 0, minWidth: 0 }}>
             <div
               style={{
                 position: 'absolute',
@@ -188,12 +191,15 @@ export default function MarineDashboard() {
             </div>
           </div>
 
+          <div style={{ gridColumn: '1 / 4', gridRow: 2, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <StockTicker theme={theme} />
+            </div>
+
           <button
             onClick={toggleTheme}
             style={{
-              position: 'absolute',
-              bottom: 6,
-              right: 6,
+              flexShrink: 0,
               fontFamily: FONT_FAMILIES.mono,
               fontSize: 10,
               letterSpacing: '.08em',
@@ -209,6 +215,7 @@ export default function MarineDashboard() {
           >
             {themeId === 'command-center' ? 'Daylight Glass' : 'Command Center'}
           </button>
+          </div>
         </div>
       </ScaleToFit>
     </DashboardDataProvider>

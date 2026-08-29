@@ -375,6 +375,19 @@ button, select, input {
   100% { transform: scale(2.3); opacity: 0; }
 }
 
+/* Bottom market ticker: two copies of the quote list scrolling as one seamless loop
+   (see StockTicker.tsx, which sets animation-duration from the number of quotes). */
+.hh-ticker-track {
+  animation-name: hhTicker;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes hhTicker {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
 /* Dark theme basemap: Esri's gray canvas tiles (no API key needed, unlike CARTO's dark tiles)
    dimmed and pushed to navy - sepia gives the gray a hue to rotate into blue. Only the tile
    images carry this class, so the whale pins above them are unaffected. */

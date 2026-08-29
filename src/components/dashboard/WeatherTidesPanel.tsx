@@ -24,7 +24,7 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         padding: 24,
         display: 'flex',
         flexDirection: 'column',
-        gap: 11,
+        gap: 9,
         fontFamily: FONT_FAMILIES.body,
         minHeight: 0,
       }}
@@ -133,7 +133,7 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.muted }}>next 3 days</span>
       </div>
 
-      <svg viewBox={`0 0 ${viewW} ${viewH}`} style={{ width: '100%', height: 104, overflow: 'visible' }}>
+      <svg viewBox={`0 0 ${viewW} ${viewH}`} style={{ width: '100%', height: 88, overflow: 'visible' }}>
         <defs>
           <linearGradient id="tideGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={theme.accentA} stopOpacity={theme.isLight ? 0.3 : 0.38} />

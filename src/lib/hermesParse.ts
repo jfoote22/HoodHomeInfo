@@ -28,6 +28,8 @@ export interface HermesItem {
   isCalendar: boolean;
   /** true when the card sits under the weather section ("Union Wa Weather") - not an event */
   isWeather: boolean;
+  /** true when the card sits under the "Stock Watch" section - not an event */
+  isStock: boolean;
   /** index of this occurrence when a card lists several dates */
   occurrence: number;
 }
@@ -39,6 +41,7 @@ const TIME_TOKEN = /(\d{1,2})(?::(\d{2}))?\s*([AaPp])\.?[Mm]?\.?/;
 const MONTHS: Record<string, number> = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
 const CALENDAR_SECTION = /bravefoote|our calendar|calendar events|gmail/i;
 const WEATHER_SECTION = /weather|forecast|current conditions/i;
+const STOCK_SECTION = /stock|market price/i;
 
 export function hermesYear(html: string): number {
   const m = html.match(/Window:[^<]*?(\d{4})/) || html.match(/(\d{4})-\d{2}-\d{2}/);
@@ -154,6 +157,7 @@ export function parseHermesHtml(body: string): HermesItem[] {
     const cityFromWhere = whereParts.length > 1 ? whereParts[whereParts.length - 1].replace(/\s*WA.*$/i, '').trim() : null;
     const isCalendarCard = isCalendar || /^calendar$/i.test(cat || '');
     const isWeatherCard = WEATHER_SECTION.test(sectionTitle) || /^weather$/i.test(cat || '');
+    const isStockCard = STOCK_SECTION.test(sectionTitle) || /^stocks?$/i.test(cat || '');
     occurrences.forEach(({ start, end, allDay }, i) => {
       out.push({
         title,
@@ -167,6 +171,7 @@ export function parseHermesHtml(body: string): HermesItem[] {
         description,
         isCalendar: isCalendarCard,
         isWeather: isWeatherCard,
+        isStock: isStockCard,
         occurrence: i,
       });
     });
@@ -277,4 +282,58 @@ export function parseHermesWeather(body: string): HermesWeather {
     now.windDir = windDirection(todayText);
   }
   return { now, days };
+}
+
+// ---------------------------------------------------------------------------
+// Stocks (Hermes "Stock Watch" section, quotes from Yahoo Finance). Cards look like:
+//   * Tesla (TSLA)  ->  "348.75 USD (-6.06, -1.71% vs previous close). Market timestamp: ..."
+// ---------------------------------------------------------------------------
+
+export interface HermesQuote {
+  /** "Tesla" */
+  name: string;
+  /** "TSLA", "^GSPC" */
+  symbol: string;
+  price: number;
+  currency: string;
+  /** absolute change vs previous close; null when Hermes didn't say */
+  change: number | null;
+  /** percent change vs previous close */
+  changePct: number | null;
+  url: string | null;
+  asOf: string | null;
+}
+
+const QUOTE_RE = /(-?[\d,]+(?:\.\d+)?)\s*([A-Z]{3})?\s*\(\s*([+-]?[\d,]+(?:\.\d+)?)\s*,\s*([+-]?[\d.]+)\s*%/;
+
+function num(raw: string): number {
+  return parseFloat(raw.replace(/,/g, ''));
+}
+
+/** Pull the Stock Watch quotes out of a Hermes page, in the order Hermes listed them. */
+export function parseHermesStocks(body: string): HermesQuote[] {
+  const out: HermesQuote[] = [];
+  const seen = new Set<string>();
+  for (const it of parseHermesHtml(body)) {
+    if (!it.isStock) continue;
+    const text = (it.description || '').replace(/\s+/g, ' ').trim();
+    const m = text.match(QUOTE_RE);
+    if (!m) continue;
+    const titleMatch = it.title.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+    const name = (titleMatch ? titleMatch[1] : it.title).trim();
+    const symbol = (titleMatch ? titleMatch[2] : it.title).trim().toUpperCase();
+    if (!symbol || seen.has(symbol)) continue;
+    seen.add(symbol);
+    out.push({
+      name: name || symbol,
+      symbol,
+      price: num(m[1]),
+      currency: m[2] || 'USD',
+      change: m[3] ? num(m[3]) : null,
+      changePct: m[4] ? parseFloat(m[4]) : null,
+      url: it.url,
+      asOf: it.start ? it.start.toISOString() : null,
+    });
+  }
+  return out;
 }

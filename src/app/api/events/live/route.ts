@@ -156,7 +156,7 @@ function parseHermesJson(parsed: any): LiveEvent[] {
 // Cards under the "Bravefoote Calendar" section belong to /api/our-events, not here.
 function hermesHtmlToLocal(body: string): LiveEvent[] {
   return parseHermesHtml(body)
-    .filter((it) => !it.isCalendar && !it.isWeather)
+    .filter((it) => !it.isCalendar && !it.isWeather && !it.isStock)
     .map((it) =>
       toLegacy({
         id: `hermes-${slug(it.title)}-${it.start.toISOString().slice(0, 10)}-${it.occurrence}`,
