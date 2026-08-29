@@ -64,8 +64,6 @@ function FitBoundsOnce({ onReady }: { onReady: (map: LeafletMap) => void }) {
   const map = useMap();
   useEffect(() => {
     map.fitBounds(HOOD_CANAL_BOUNDS, { padding: [10, 10], animate: false });
-    // One click further out than the fitted view, for more of the Sound on the wall display.
-    map.setZoom(map.getZoom() - 1, { animate: false });
     onReady(map);
   }, [map, onReady]);
   return null;
