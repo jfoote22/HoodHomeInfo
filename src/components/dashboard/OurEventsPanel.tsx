@@ -202,7 +202,17 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
 
       <div style={{ fontFamily: mono, fontSize: 10, color: theme.dim, letterSpacing: '.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {rows.length > 0 ? `${rows.length} upcoming · ` : ''}
-        {ourEvents.writable ? 'Synced with Google Calendar' : ourEvents.sources.includes('hermes') ? 'Via Howie' : ourEvents.sources.includes('ics') ? 'Via calendar feed' : 'Calendar not connected'}
+        {/* "Not connected" is only honest when no source can read the calendar. Reading the
+            public calendar - the same one the embed shows - is connected, just read-only. */}
+        {ourEvents.writable
+          ? 'Synced with Google Calendar'
+          : ourEvents.sources.includes('ics')
+            ? 'Via calendar feed'
+            : ourEvents.sources.includes('public')
+              ? 'Read-only · public Google Calendar'
+              : ourEvents.sources.includes('hermes')
+                ? 'Via Howie'
+                : 'Calendar not connected'}
       </div>
     </div>
   );

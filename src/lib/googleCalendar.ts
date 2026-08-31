@@ -33,8 +33,13 @@ const SCOPE = 'https://www.googleapis.com/auth/calendar';
 const TZ = 'America/Los_Angeles';
 let tokenCache: { token: string; exp: number } | null = null;
 
+/**
+ * The household calendar. NEXT_PUBLIC_OUR_CALENDAR_ID is what the hover embed renders
+ * (see CalendarView), so it is honoured here too - otherwise setting only the public id
+ * would leave the list reading a different calendar than the one on screen.
+ */
 export function calendarId(): string {
-  return (process.env.OUR_CALENDAR_ID || 'bravefoote@gmail.com').trim();
+  return (process.env.OUR_CALENDAR_ID || process.env.NEXT_PUBLIC_OUR_CALENDAR_ID || 'bravefoote@gmail.com').trim();
 }
 
 // Why the configured key could not be used, if it was set at all. A malformed key used to

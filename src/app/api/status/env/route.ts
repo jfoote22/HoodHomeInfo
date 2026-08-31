@@ -19,6 +19,8 @@ const KEYS = [
   // deployment that was never given a calendar.
   'GOOGLE_SERVICE_ACCOUNT_JSON',
   'OUR_CALENDAR_ID',
+  // The id the hover embed renders; the list falls back to it so both show one calendar.
+  'NEXT_PUBLIC_OUR_CALENDAR_ID',
   'OUR_CALENDAR_ICS_URL',
   'HERMES_EVENTS_URL',
 ];

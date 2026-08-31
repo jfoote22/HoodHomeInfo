@@ -1,29 +1,35 @@
-// Minimal iCalendar (.ics) parser - enough for a Google Calendar "secret address" feed.
-// Handles VEVENT with DTSTART/DTEND (DATE or DATE-TIME, UTC "Z" or TZID), SUMMARY,
-// LOCATION, DESCRIPTION, URL, UID, folded lines, and basic escaping. Recurring events
-// (RRULE) are NOT expanded - only their first instance is returned. For full fidelity
-// use the Google service-account path instead.
+// Minimal iCalendar (.ics) parser - enough for a Google Calendar feed, public or "secret
+// address". Handles VEVENT with DTSTART/DTEND (DATE or DATE-TIME, UTC "Z" or TZID),
+// SUMMARY, LOCATION, DESCRIPTION, URL, UID, folded lines, and basic escaping. Recurring
+// events (RRULE) are NOT expanded - only their first instance is returned. For full
+// fidelity use the Google service-account path instead.
+//
+// Plain ESM (not .ts) so `node --test` can feed it a fixture feed without a build step -
+// see tz.mjs and weatherHourly.mjs.
 
-import type { CalendarEvent } from './googleCalendar';
+/** @typedef {import('./googleCalendar').CalendarEvent} CalendarEvent */
 
 const TZ = 'America/Los_Angeles';
 
-function unfold(text: string): string[] {
+/** @param {string} text @returns {string[]} */
+function unfold(text) {
   return text
     .replace(/\r\n/g, '\n')
     .split('\n')
-    .reduce<string[]>((acc, line) => {
+    .reduce((acc, line) => {
       if ((line.startsWith(' ') || line.startsWith('\t')) && acc.length) acc[acc.length - 1] += line.slice(1);
       else acc.push(line);
       return acc;
-    }, []);
+    }, /** @type {string[]} */ ([]));
 }
 
-function unescape(v: string): string {
+/** @param {string} v */
+function unescape(v) {
   return v.replace(/\\n/gi, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\').trim();
 }
 
-function tzOffsetMinutes(at: Date, tz: string): number {
+/** @param {Date} at @param {string} tz */
+function tzOffsetMinutes(at, tz) {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' }).formatToParts(at);
   const name = parts.find((p) => p.type === 'timeZoneName')?.value || 'GMT+0';
   const m = name.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
@@ -31,8 +37,14 @@ function tzOffsetMinutes(at: Date, tz: string): number {
   return (m[1] === '-' ? -1 : 1) * (parseInt(m[2], 10) * 60 + (m[3] ? parseInt(m[3], 10) : 0));
 }
 
-/** Parse an iCal date/time value into a Date. `tzid` applies to floating DATE-TIME values. */
-function parseIcalDate(value: string, tzid: string | null, isDate: boolean): { date: Date; allDay: boolean } | null {
+/**
+ * Parse an iCal date/time value into a Date. `tzid` applies to floating DATE-TIME values.
+ * @param {string} value
+ * @param {string | null} tzid
+ * @param {boolean} isDate
+ * @returns {{ date: Date, allDay: boolean } | null}
+ */
+function parseIcalDate(value, tzid, isDate) {
   const m = value.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?$/);
   if (!m) return null;
   const [, y, mo, d, hh, mm, ss, z] = m;
@@ -53,10 +65,16 @@ function parseIcalDate(value: string, tzid: string | null, isDate: boolean): { d
   return { date: new Date(guess - offset * 60000), allDay: false };
 }
 
-export function parseIcs(text: string): CalendarEvent[] {
+/**
+ * @param {string} text
+ * @returns {CalendarEvent[]}
+ */
+export function parseIcs(text) {
   const lines = unfold(text);
-  const events: CalendarEvent[] = [];
-  let cur: Record<string, { params: Record<string, string>; value: string }> | null = null;
+  /** @type {CalendarEvent[]} */
+  const events = [];
+  /** @type {Record<string, { params: Record<string, string>, value: string }> | null} */
+  let cur = null;
   for (const line of lines) {
     if (line === 'BEGIN:VEVENT') {
       cur = {};
@@ -93,7 +111,8 @@ export function parseIcs(text: string): CalendarEvent[] {
     const left = line.slice(0, idx);
     const value = line.slice(idx + 1);
     const [name, ...paramParts] = left.split(';');
-    const params: Record<string, string> = {};
+    /** @type {Record<string, string>} */
+    const params = {};
     for (const p of paramParts) {
       const [k, v] = p.split('=');
       if (k && v) params[k.toUpperCase()] = v.replace(/^"|"$/g, '');
