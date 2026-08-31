@@ -27,6 +27,21 @@ export function publicIcsUrls(calendarId) {
   return [`https://calendar.google.com/${path}`, `https://www.google.com/${path}`];
 }
 
+/**
+ * Whether a credential-free read attempt produced a body worth parsing, and what to say when
+ * it did not. Google answers 404 for a calendar that is not shared publicly and 429 when it
+ * is throttling the .ics hosts. Neither is an empty calendar, so neither may become a
+ * connected source with zero rows: that combination is what renders as "nothing on the
+ * calendar yet" for a calendar that in fact has events on it.
+ *
+ * @param {number} status HTTP status of the read
+ * @param {string} what label for the message, e.g. 'calendar API'
+ * @returns {string | null} an error message, or null when the body may be parsed
+ */
+export function publicReadError(status, what) {
+  return status >= 200 && status < 300 ? null : `${what} HTTP ${status}`;
+}
+
 /** @param {string} s */
 function norm(s) {
   return String(s || '')

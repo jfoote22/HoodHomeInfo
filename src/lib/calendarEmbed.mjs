@@ -1,7 +1,7 @@
 // The Google Calendar embed the dashboard shows: the hover CalendarView (WEEK) and the
 // "Our Events" optional Week/Month views are the same calendar on the same host, built here
-// so the two can never drift apart. "Our Events" defaults to its own native rows - see
-// shouldShowAgendaEmbed.
+// so the two can never drift apart. "Our Events" prefers its own native rows and falls back
+// to the embed's AGENDA mode only when it has no rows to show - see panelEmbedMode.
 //
 // The embed needs no credential of its own - it renders whatever the viewer can see, which
 // for the kiosk means the calendar is shared publicly (Calendar settings -> Access
@@ -55,20 +55,47 @@ export function calendarEmbedUrl(calendarId, opts = {}) {
   u.searchParams.set('showPrint', '0');
   u.searchParams.set('showCalendars', '0');
   u.searchParams.set('showTz', '0');
+  // Google's view tabs are a second, far louder copy of the panel's own List/Week/Month
+  // chips - on the kiosk they were the biggest thing in the panel. The chips switch views;
+  // the iframe never gets to offer its own set.
+  u.searchParams.set('showTabs', '0');
   u.searchParams.set('wkst', '1');
+  // AGENDA is the panel's glance view, not something anyone navigates: no date range and no
+  // arrows either, so it reads as a list of rows rather than as Google's app. WEEK and MONTH
+  // keep their nav, because there the point is to move around the calendar.
+  if (u.searchParams.get('mode') === 'AGENDA') {
+    u.searchParams.set('showNav', '0');
+    u.searchParams.set('showDate', '0');
+  }
   return u.toString();
 }
 
 /**
+ * Height, in CSS pixels, of the blank gutter Google leaves above the agenda's first row. The
+ * panel clips it away - pulling the iframe up by this much inside an overflow-hidden box -
+ * so the AGENDA body starts on a row, under our own "Our Events" heading, instead of on
+ * Google's page padding.
+ *
+ * Measured off the agenda embed rendered with exactly the flags above: blank to y=14, then
+ * today's row (its date and the red now-line) to y=48, then the first event. Note what is
+ * *not* there: with showTabs/showNav/showDate off, Google draws no header and no view tabs
+ * to crop. So the crop stops at the gutter - today's row is where today's events land, and
+ * cutting into it would hide the thing the panel exists to show.
+ */
+export const AGENDA_HEADER_CROP_PX = 14;
+
+/**
  * The views the "Our Events" panel offers. LIST is our own rows - the day chip, title and
  * date/time/location line that Local Events uses - and is the default; WEEK and MONTH are
- * the Google embed, offered as a small explicit choice.
+ * the Google embed, offered as a small explicit choice. LIST is a view, not a data source:
+ * with rows it is native, with none it is the AGENDA embed showing the same events Week and
+ * Month show. See panelEmbedMode.
  */
 export const VIEW_LIST = 'list';
 export const VIEW_WEEK = 'week';
 export const VIEW_MONTH = 'month';
 export const CALENDAR_VIEWS = [VIEW_LIST, VIEW_WEEK, VIEW_MONTH];
-/** Native rows, always - see shouldShowAgendaEmbed for why the embed is not the default. */
+/** The list - our rows when we have them, the cropped AGENDA embed when we have none. */
 export const DEFAULT_CALENDAR_VIEW = VIEW_LIST;
 
 /**
@@ -99,25 +126,49 @@ export function embedModeForView(view) {
   return null;
 }
 
+/** @param {unknown} rows @returns {number} rows the native list would render */
+function rowCount(rows) {
+  if (Array.isArray(rows)) return rows.length;
+  const n = Number(rows);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 /**
- * Should the panel hand its body to the Google embed instead of rendering native rows?
+ * Which Google embed mode - if any - the panel's body should be, given how the fetch went
+ * and what the viewer has asked for. `null` means our own native rows.
  *
- * Only when the viewer asked for WEEK or MONTH. The list view stays native even with
- * nothing to show: on the kiosk, Google's own UI - its header, its nav, its typography -
- * eats the panel, so an empty list is better read as "nothing on the calendar" than as a
- * wall of Google chrome. The embed had been the fallback for an empty list, which made it
- * the *default* view in practice, because the credential-free read paths return no rows
- * for a calendar that is not shared publicly.
+ * The rules, in order:
+ *   - still loading -> native (the list says "Loading calendar…"; no iframe flash)
+ *   - no calendar id -> native (there is nothing to embed)
+ *   - the viewer picked Week or Month -> that mode
+ *   - List (the default, and whatever else List means):
+ *       rows -> native, the compact Local-Events shape we want
+ *       no rows -> AGENDA, cropped to its rows by the panel
  *
- * Note what is deliberately absent: `rows`. An empty list does not summon the embed, and a
- * full one does not dismiss it - the view is the viewer's choice, not a consequence of how
- * the fetch went.
+ * That last line is the point of this module. Every credential-free read path answers 404
+ * for a calendar that is not shared publicly, so an empty list is far more often "we could
+ * not read it" than "there is nothing on it" - and this household's calendar demonstrably
+ * has events, which Week and Month show. The embed renders them because it runs in the
+ * viewer's own signed-in browser. "Nothing on the calendar yet" under a calendar that
+ * visibly has events is the one answer that is simply wrong, so no state produces it while
+ * there is a calendar to embed.
  *
- * @param {{ loading?: boolean, view?: string | null, calendarId?: string | null }} state
+ * @param {{ loading?: boolean, view?: string | null, rows?: unknown, calendarId?: string | null }} state
+ * @returns {'WEEK' | 'MONTH' | 'AGENDA' | null}
+ */
+export function panelEmbedMode(state = {}) {
+  if (state.loading) return null;
+  if (!String(state.calendarId || '').trim()) return null;
+  const explicit = embedModeForView(state.view);
+  if (explicit !== null) return explicit;
+  return rowCount(state.rows) > 0 ? null : 'AGENDA';
+}
+
+/**
+ * Does the panel hand its body to the Google embed instead of rendering native rows?
+ * @param {Parameters<typeof panelEmbedMode>[0]} state
  * @returns {boolean}
  */
 export function shouldShowAgendaEmbed(state = {}) {
-  if (state.loading) return false; // nothing to switch to yet
-  if (embedModeForView(state.view) === null) return false; // the native list is the default
-  return String(state.calendarId || '').trim().length > 0;
+  return panelEmbedMode(state) !== null;
 }

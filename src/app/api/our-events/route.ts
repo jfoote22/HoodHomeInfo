@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { listUpcoming, googleConfigured, serviceAccountError, calendarId, type CalendarEvent } from '../../../lib/googleCalendar';
 import { parseIcs } from '../../../lib/ics.mjs';
-import { publicIcsUrls, publicCalendarApiUrl, mapPublicCalendarEvents, mergeOurEvents } from '../../../lib/ourEventsList.mjs';
+import { publicIcsUrls, publicCalendarApiUrl, mapPublicCalendarEvents, mergeOurEvents, publicReadError } from '../../../lib/ourEventsList.mjs';
 import { loadHermesDocument } from '../../../lib/hermesStore';
 import { parseHermesHtml, slug } from '../../../lib/hermesParse';
 
@@ -18,9 +18,10 @@ const HERMES_EVENTS_URL = (process.env.HERMES_EVENTS_URL || '').trim();
 //      Calendar v3 events.list through the embed's own browser-shipped key, then the public
 //      .ics as a second try. This is the read path when none of the above is configured, so
 //      the list shows the calendar the embed is already showing instead of nothing.
-// Rows from here fill the panel's native list, which is now its default view whether or not
-// it has anything in it (src/lib/calendarEmbed.mjs). An empty response means the list says
-// "nothing on the calendar yet", not that the panel hands itself to Google's UI.
+// Rows from here fill the panel's native list, which is its default view. An empty response
+// is not a claim that the calendar is empty - none of these paths can read a calendar that is
+// only shared with the household - so the panel falls back to the embed's agenda for the same
+// list rather than to "nothing on the calendar yet" (src/lib/calendarEmbed.mjs).
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const WINDOW_DAYS = 28;
@@ -128,7 +129,8 @@ async function fetchIcs(url: string, timeoutMs: number): Promise<CalendarEvent[]
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
-    if (!res.ok) throw new Error(`ICS HTTP ${res.status}`);
+    const problem = publicReadError(res.status, 'ICS');
+    if (problem) throw new Error(problem);
     const text = await res.text();
     if (!/BEGIN:VCALENDAR/i.test(text)) throw new Error('ICS response was not a calendar feed');
     return parseIcs(text);
@@ -154,8 +156,10 @@ async function fetchPublicCalendarApi(url: string, timeoutMs: number): Promise<C
   try {
     const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
     // 404 here is Google's answer for "this calendar is not shared publicly" - the same
-    // shape it returns for a calendar that does not exist at all.
-    if (!res.ok) throw new Error(`calendar API HTTP ${res.status}`);
+    // shape it returns for a calendar that does not exist at all. Throwing keeps it out of
+    // `sources`, so a miss is never reported as a calendar we read and found empty.
+    const problem = publicReadError(res.status, 'calendar API');
+    if (problem) throw new Error(problem);
     return mapPublicCalendarEvents(await res.json());
   } finally {
     clearTimeout(t);
@@ -169,10 +173,10 @@ async function fetchPublicCalendarApi(url: string, timeoutMs: number): Promise<C
  * can write).
  *
  * Both attempts fail for a calendar that is *not* shared publicly - the API answers 404 and
- * the .ics 404/429 - and that is a missing bonus, not a broken dashboard. A miss is logged
- * as "not a source", never as an error: the panel shows "nothing on the calendar yet", and
- * the Week/Month views still render the calendar from the viewer's own browser, where the
- * viewer's Google session is what grants access.
+ * the .ics 404/429 - which is this household's calendar today. A miss is logged as "not a
+ * source", never as an error, and it is emphatically not an empty calendar: the panel falls
+ * back to the embed for its list, and the embed renders the same events from the viewer's
+ * own browser, where the viewer's Google session is what grants access.
  */
 async function fromPublicCalendar(): Promise<SourceResult> {
   if (ICS_URL || googleConfigured()) return { name: 'public', ok: false, events: [] };

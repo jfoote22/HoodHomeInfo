@@ -16,6 +16,7 @@ import {
   mergeOurEvents,
   publicCalendarApiUrl,
   publicIcsUrls,
+  publicReadError,
 } from '../src/lib/ourEventsList.mjs';
 import { parseIcs } from '../src/lib/ics.mjs';
 
@@ -268,4 +269,29 @@ test('rows from the public read survive the merge into the list', () => {
   const merged = mergeOurEvents([{ name: 'public', ok: true, events }], NOW, { windowDays: 28 });
   assert.deepEqual(merged.sources, ['public']);
   assert.deepEqual(merged.events.map((e) => e.id), ['later']); // the far one is past the window
+});
+
+// --- a miss is a miss, not an empty calendar ---------------------------------------------
+// The live failure: the credential-free reads answer 404 for this household's calendar, and
+// zero rows looked exactly like a calendar with nothing on it. The read has to keep the two
+// apart, because "nothing on the calendar yet" was being shown for a calendar with events.
+
+test('a 404 is not a successful empty calendar', () => {
+  // Google's 404 for "not shared publicly", and the 429 the .ics hosts answer with.
+  for (const status of [400, 401, 403, 404, 429, 500, 503]) {
+    const problem = publicReadError(status, 'calendar API');
+    assert.ok(problem, `HTTP ${status} must not be read as a body`);
+    assert.match(problem, new RegExp(`\\b${status}\\b`)); // the status survives into the message
+  }
+  // The route turns that message into a throw, so the source lands as ok:false...
+  const { events, sources } = mergeOurEvents([{ name: 'public', ok: false, events: [] }], NOW);
+  assert.deepEqual(events, []);
+  assert.deepEqual(sources, [], 'a calendar we could not read is not a connected source');
+});
+
+test('a 2xx is read, and an empty 2xx really is an empty calendar', () => {
+  for (const status of [200, 204, 299]) assert.equal(publicReadError(status, 'ICS'), null);
+  // Only this shape - read OK, no rows - may be reported as a connected, quiet calendar.
+  assert.deepEqual(mergeOurEvents([{ name: 'public', ok: true, events: [] }], NOW).sources, ['public']);
+  assert.deepEqual(mapPublicCalendarEvents({ items: [] }), []);
 });
