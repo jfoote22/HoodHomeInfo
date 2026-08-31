@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { listUpcoming, googleConfigured, serviceAccountError, calendarId, type CalendarEvent } from '../../../lib/googleCalendar';
 import { parseIcs } from '../../../lib/ics.mjs';
-import { publicIcsUrls, mergeOurEvents } from '../../../lib/ourEventsList.mjs';
+import { publicIcsUrls, publicCalendarApiUrl, mapPublicCalendarEvents, mergeOurEvents } from '../../../lib/ourEventsList.mjs';
 import { loadHermesDocument } from '../../../lib/hermesStore';
 import { parseHermesHtml, slug } from '../../../lib/hermesParse';
 
@@ -14,12 +14,13 @@ const HERMES_EVENTS_URL = (process.env.HERMES_EVENTS_URL || '').trim();
 //   2. Hermes: the household-calendar section of its HTML page (pushed document, or the LAN
 //      page via HERMES_EVENTS_URL) or an ourEvents[] array in its JSON push
 //   3. A private ICS feed (OUR_CALENDAR_ICS_URL)
-//   4. The public .ics of the calendar in calendarId() - no credential at all, exactly like
-//      the embed. This is the read path when none of the above is configured, so the list
-//      shows the calendar the embed is already showing instead of nothing.
-// When none of them yields a row, the panel shows the calendar through the Google embed in
-// AGENDA mode (src/lib/calendarEmbed.mjs) - so an empty response here means "no rows to
-// merge", not "no calendar on screen".
+//   4. The public calendar in calendarId() - no credential at all, exactly like the embed:
+//      Calendar v3 events.list through the embed's own browser-shipped key, then the public
+//      .ics as a second try. This is the read path when none of the above is configured, so
+//      the list shows the calendar the embed is already showing instead of nothing.
+// Rows from here fill the panel's native list, which is now its default view whether or not
+// it has anything in it (src/lib/calendarEmbed.mjs). An empty response means the list says
+// "nothing on the calendar yet", not that the panel hands itself to Google's UI.
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const WINDOW_DAYS = 28;
@@ -142,32 +143,60 @@ async function fromIcs(): Promise<SourceResult> {
 }
 
 /**
- * The credential-free read path: a calendar that is shared publicly serves its own .ics,
- * which is the same permission the hover embed already needs. Skipped when a service
- * account or an explicit feed is configured, since those read the same calendar with more
- * fidelity (and recurring events expanded).
+ * The same Calendar v3 read the embed's own JavaScript makes from the browser, with the
+ * key Google ships in that JavaScript - no household secret, no service account, no env
+ * var. Preferred over the public .ics: Google serves it for every calendar the embed can
+ * render, and `singleEvents` expands recurring events, which the .ics parser cannot do.
+ */
+async function fetchPublicCalendarApi(url: string, timeoutMs: number): Promise<CalendarEvent[]> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    // 404 here is Google's answer for "this calendar is not shared publicly" - the same
+    // shape it returns for a calendar that does not exist at all.
+    if (!res.ok) throw new Error(`calendar API HTTP ${res.status}`);
+    return mapPublicCalendarEvents(await res.json());
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/**
+ * The credential-free read path: a calendar shared publicly can be read by anyone, which is
+ * the same permission the hover embed already needs. Skipped when a service account or an
+ * explicit feed is configured, since those read the same calendar with more fidelity (and
+ * can write).
  *
- * A calendar that is public to the embed does not always serve this feed - Google answers
- * 404 for plenty of them. That is a missing bonus, not a broken dashboard: the panel falls
- * back to the agenda embed (see shouldShowAgendaEmbed), which reads the calendar from the
- * viewer's own browser. So a miss here is logged and reported as "not a source", never as
- * an error - error copy over a calendar we can still show would be a lie.
+ * Both attempts fail for a calendar that is *not* shared publicly - the API answers 404 and
+ * the .ics 404/429 - and that is a missing bonus, not a broken dashboard. A miss is logged
+ * as "not a source", never as an error: the panel shows "nothing on the calendar yet", and
+ * the Week/Month views still render the calendar from the viewer's own browser, where the
+ * viewer's Google session is what grants access.
  */
 async function fromPublicCalendar(): Promise<SourceResult> {
   if (ICS_URL || googleConfigured()) return { name: 'public', ok: false, events: [] };
-  const urls = publicIcsUrls(calendarId());
+  const id = calendarId();
   let last = 'no calendar id';
-  for (const url of urls) {
+  const apiUrl = publicCalendarApiUrl(id, { windowDays: WINDOW_DAYS });
+  if (apiUrl) {
+    try {
+      return { name: 'public', ok: true, events: await fetchPublicCalendarApi(apiUrl, 10000) };
+    } catch (err) {
+      last = err instanceof Error ? err.message : String(err);
+    }
+  }
+  for (const url of publicIcsUrls(id)) {
     try {
       return { name: 'public', ok: true, events: await fetchIcs(url, 10000) };
     } catch (err) {
       last = err instanceof Error ? err.message : String(err);
     }
   }
-  // Named env vars only - never an id, a URL or a key.
+  // Named env vars only - never an id, a URL, a key or an event title.
   console.warn(
-    `our-events: public calendar feed unreadable (${last}) - showing the calendar via the embed instead. ` +
-      'For a merged list, make the calendar public in Calendar settings, or set OUR_CALENDAR_ICS_URL or GOOGLE_SERVICE_ACCOUNT_JSON.',
+    `our-events: public calendar unreadable (${last}) - the list will be empty. ` +
+      'For rows, share the calendar publicly in Calendar settings, or set OUR_CALENDAR_ICS_URL or GOOGLE_SERVICE_ACCOUNT_JSON.',
   );
   return { name: 'public', ok: false, events: [] };
 }

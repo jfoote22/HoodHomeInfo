@@ -9,11 +9,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { publicIcsUrls, mergeOurEvents } from '../src/lib/ourEventsList.mjs';
+import {
+  PUBLIC_CALENDAR_API_HOST,
+  PUBLIC_EMBED_API_KEY,
+  mapPublicCalendarEvents,
+  mergeOurEvents,
+  publicCalendarApiUrl,
+  publicIcsUrls,
+} from '../src/lib/ourEventsList.mjs';
 import { parseIcs } from '../src/lib/ics.mjs';
 
 const NOW = Date.parse('2026-08-31T04:20:00Z'); // 9:20 PM PDT, Sun Aug 30 2026
 const HOUR = 3600 * 1000;
+const ID = 'household@example.com'; // a fixture calendar, not the household's real id
 
 /** A Google-style feed for the household calendar. Titles are fixtures, not real events. */
 const FEED = `BEGIN:VCALENDAR
@@ -62,7 +70,7 @@ const publicFeed = () => ({ name: 'public', ok: true, events: parseIcs(FEED) });
 const titles = (r) => r.events.map((e) => e.title);
 
 test('reads the same calendar the embed does, with no credential', () => {
-  const urls = publicIcsUrls('household@example.com');
+  const urls = publicIcsUrls(ID);
   assert.equal(urls.length, 2);
   assert.equal(urls[0], 'https://calendar.google.com/calendar/ical/household%40example.com/public/basic.ics');
   assert.equal(urls[1], 'https://www.google.com/calendar/ical/household%40example.com/public/basic.ics');
@@ -165,4 +173,99 @@ test('survives junk from any source', () => {
   );
   assert.deepEqual(events, []);
   assert.deepEqual(parseIcs('not a calendar at all'), []);
+});
+
+// --- the credential-free read the embed itself makes -------------------------------------
+// Calendar v3 events.list through the key Google's embed JavaScript ships to every browser.
+// It needs no env var; it needs the calendar to be shared publicly, which is exactly what
+// the embed needs too.
+
+test('the public read is Calendar v3 for the calendar, keyed by the embed key', () => {
+  const u = new URL(publicCalendarApiUrl(ID, { nowMs: NOW }));
+  assert.equal(u.origin, PUBLIC_CALENDAR_API_HOST);
+  assert.equal(u.pathname, `/calendar/v3/calendars/${encodeURIComponent(ID)}/events`);
+  assert.equal(u.searchParams.get('key'), PUBLIC_EMBED_API_KEY);
+  // The id carries an "@" - it is a path segment here, so it has to be escaped.
+  assert.ok(u.pathname.includes('%40'));
+});
+
+test('recurring events are expanded and the result comes back in order', () => {
+  // orderBy=startTime is only legal alongside singleEvents=true - ask for one without the
+  // other and Google answers 400, which would read as "calendar unreadable".
+  const p = new URL(publicCalendarApiUrl(ID, { nowMs: NOW })).searchParams;
+  assert.equal(p.get('singleEvents'), 'true');
+  assert.equal(p.get('orderBy'), 'startTime');
+});
+
+test('the window asked for matches the window the list keeps', () => {
+  const p = new URL(publicCalendarApiUrl(ID, { nowMs: NOW, windowDays: 28 })).searchParams;
+  // A day of slack behind now, so an event that started this morning is still fetched and
+  // then trimmed by mergeOurEvents' own grace period rather than never arriving.
+  assert.ok(Date.parse(p.get('timeMin')) <= NOW);
+  assert.equal(Date.parse(p.get('timeMax')), NOW + 28 * 86400000);
+  assert.equal(new URL(publicCalendarApiUrl(ID, { nowMs: NOW, windowDays: 7 })).searchParams.get('timeMax'), new Date(NOW + 7 * 86400000).toISOString());
+});
+
+test('no calendar means no read at all', () => {
+  for (const empty of [undefined, null, '', '   ']) assert.equal(publicCalendarApiUrl(empty), null);
+});
+
+test('v3 items become list rows, timed and all-day alike', () => {
+  const rows = mapPublicCalendarEvents({
+    items: [
+      {
+        id: 'timed-1',
+        summary: 'Fixture later tonight',
+        location: 'Union',
+        htmlLink: 'https://example.com/e/1',
+        start: { dateTime: '2026-08-31T05:30:00Z' },
+        end: { dateTime: '2026-08-31T06:30:00Z' },
+      },
+      { id: 'allday-1', summary: 'Fixture all day today', start: { date: '2026-08-30' }, end: { date: '2026-08-31' } },
+    ],
+  });
+  assert.equal(rows.length, 2);
+  assert.deepEqual(
+    rows.map((e) => [e.id, e.allDay, e.location, e.source]),
+    [
+      ['timed-1', false, 'Union', 'google'],
+      ['allday-1', true, null, 'google'],
+    ],
+  );
+  assert.equal(rows[0].start, '2026-08-31T05:30:00.000Z');
+  assert.equal(rows[0].end, '2026-08-31T06:30:00.000Z');
+  assert.equal(rows[0].url, 'https://example.com/e/1');
+});
+
+test('cancelled, undated and malformed items are dropped, not rendered', () => {
+  const rows = mapPublicCalendarEvents({
+    items: [
+      { id: 'gone', summary: 'Fixture cancelled', status: 'cancelled', start: { dateTime: '2026-08-31T05:30:00Z' } },
+      { id: 'nodate', summary: 'Fixture with no start' },
+      { id: 'baddate', summary: 'Fixture with a bad start', start: { dateTime: 'not-a-date' } },
+      null,
+      { id: 'keep', summary: 'Fixture kept', start: { dateTime: '2026-08-31T05:30:00Z' } },
+    ],
+  });
+  assert.deepEqual(rows.map((e) => e.id), ['keep']);
+});
+
+test('an error body or an empty calendar is zero rows, never a throw', () => {
+  // Google answers 404 with this shape for a calendar that is not shared publicly. The
+  // route turns the status into a source miss; the mapper must not add a crash on top.
+  for (const body of [{ error: { code: 404, message: 'Not Found' } }, { items: [] }, {}, null, undefined, 'nope']) {
+    assert.deepEqual(mapPublicCalendarEvents(body), []);
+  }
+});
+
+test('rows from the public read survive the merge into the list', () => {
+  const events = mapPublicCalendarEvents({
+    items: [
+      { id: 'later', summary: 'Fixture later tonight', start: { dateTime: '2026-08-31T05:30:00Z' }, end: { dateTime: '2026-08-31T06:30:00Z' } },
+      { id: 'far', summary: 'Fixture past the window', start: { dateTime: '2026-11-15T19:00:00Z' }, end: { dateTime: '2026-11-15T20:00:00Z' } },
+    ],
+  });
+  const merged = mergeOurEvents([{ name: 'public', ok: true, events }], NOW, { windowDays: 28 });
+  assert.deepEqual(merged.sources, ['public']);
+  assert.deepEqual(merged.events.map((e) => e.id), ['later']); // the far one is past the window
 });

@@ -4,7 +4,15 @@ import { useRef, useState } from 'react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { useDashboardData } from './DashboardDataContext';
 import { CALENDAR_CHANGED_EVENT } from './CalendarView';
-import { calendarEmbedUrl, resolveCalendarId, shouldShowAgendaEmbed } from '../../lib/calendarEmbed.mjs';
+import {
+  CALENDAR_VIEWS,
+  DEFAULT_CALENDAR_VIEW,
+  VIEW_LIST,
+  calendarEmbedUrl,
+  embedModeForView,
+  resolveCalendarId,
+  shouldShowAgendaEmbed,
+} from '../../lib/calendarEmbed.mjs';
 import type { OurEvent } from '../../lib/hooks/useOurEvents';
 import { useAutoScroll } from '../../lib/hooks/useAutoScroll';
 
@@ -16,14 +24,15 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
   const mono = FONT_FAMILIES.mono;
   const [pending, setPending] = useState<{ id: string; state: DeleteState } | null>(null);
 
-  // With no rows of our own, show the calendar itself rather than empty or error copy: the
-  // embed is the viewer's browser asking Google directly, so it keeps working when none of
-  // the server-side read paths are configured (see shouldShowAgendaEmbed). Same host and
-  // same src as the hover CalendarView - only the mode differs.
+  // The default view is our own rows - the same compact shape Local Events uses - however
+  // the fetch went. Week and Month hand the panel to the Google embed instead, which is the
+  // viewer's browser asking Google directly and so keeps working when no server-side read
+  // path is configured; they are an explicit choice, never the fallback for an empty list
+  // (see shouldShowAgendaEmbed). Same host and same src as the hover CalendarView.
+  const [view, setView] = useState<string>(DEFAULT_CALENDAR_VIEW);
   const calendarId = resolveCalendarId(process.env.NEXT_PUBLIC_OUR_CALENDAR_ID, ourEvents.calendar);
-  const agendaSrc = shouldShowAgendaEmbed({ loading: ourEvents.loading, rows, calendarId })
-    ? calendarEmbedUrl(calendarId, { mode: 'AGENDA' })
-    : null;
+  const embedMode = shouldShowAgendaEmbed({ loading: ourEvents.loading, view, calendarId }) ? embedModeForView(view) : null;
+  const embedSrc = embedMode ? calendarEmbedUrl(calendarId, { mode: embedMode }) : null;
 
   // Same slow ping-pong scroll as Local Events when the list outgrows the panel; holds
   // still while the pointer is over it or a delete confirmation is open.
@@ -94,15 +103,38 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: '.22em', color: theme.accentB, textTransform: 'uppercase' }}>Our Events</span>
-        <span style={{ fontSize: 12, color: theme.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 190 }}>
-          {ourEvents.calendar || 'calendar'}
-        </span>
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          {CALENDAR_VIEWS.map((v: string) => {
+            const on = v === view;
+            return (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                aria-pressed={on}
+                style={{
+                  fontFamily: mono,
+                  fontSize: 10,
+                  letterSpacing: '.08em',
+                  textTransform: 'uppercase',
+                  color: on ? (theme.isLight ? '#fff' : '#1a1206') : theme.muted,
+                  background: on ? theme.accentB : 'transparent',
+                  border: `1px solid ${theme.accentB}${on ? '' : '44'}`,
+                  borderRadius: 7,
+                  padding: '2px 7px',
+                  cursor: 'pointer',
+                }}
+              >
+                {v}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {agendaSrc && (
+      {embedSrc && (
         <iframe
           title="Our calendar"
-          src={agendaSrc}
+          src={embedSrc}
           style={{
             flex: 1,
             minHeight: 0,
@@ -116,9 +148,10 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
         />
       )}
 
+      {!embedSrc && (
       <div
         ref={viewportRef}
-        style={{ position: 'relative', flex: agendaSrc ? 0 : 1, minHeight: 0, overflow: 'hidden' }}
+        style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden' }}
         onMouseEnter={() => {
           hoverRef.current = true;
           pausedRef.current = true;
@@ -204,11 +237,9 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
             </div>
           );
         })}
-        {!ourEvents.loading && rows.length === 0 && !agendaSrc && (
+        {!ourEvents.loading && rows.length === 0 && (
           <div style={{ fontFamily: mono, fontSize: 11, color: theme.dim, lineHeight: 1.5, marginTop: 4 }}>
             {ourEvents.errors.length > 0 ? (
-              // Only reachable with no calendar to embed - otherwise the calendar is on
-              // screen and an error about how we read it is noise.
               <>
                 Couldn&apos;t reach the calendar.
                 <br />
@@ -218,7 +249,9 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
               <>
                 Nothing on the calendar yet.
                 <br />
-                Tap a local event below, then <span style={{ color: theme.accentB }}>+ Add to calendar</span>.
+                Tap a local event below, then <span style={{ color: theme.accentB }}>+ Add to calendar</span>
+                <br />
+                &mdash; or open <span style={{ color: theme.accentB }}>Week</span> / <span style={{ color: theme.accentB }}>Month</span> above.
               </>
             )}
           </div>
@@ -226,9 +259,11 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
         {ourEvents.loading && <div style={{ fontFamily: mono, fontSize: 11, color: theme.dim }}>Loading calendar…</div>}
         </div>
       </div>
+      )}
 
       <div style={{ fontFamily: mono, fontSize: 10, color: theme.dim, letterSpacing: '.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {rows.length > 0 ? `${rows.length} upcoming · ` : ''}
+        {view !== VIEW_LIST ? `${ourEvents.calendar || 'calendar'} · ` : ''}
         {/* "Not connected" is only honest when no source can read the calendar. Reading the
             public calendar - the same one the embed shows - is connected, just read-only. */}
         {ourEvents.writable
@@ -239,7 +274,7 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
               ? 'Read-only · public Google Calendar'
               : ourEvents.sources.includes('hermes')
                 ? 'Via Howie'
-                : agendaSrc
+                : embedSrc
                   ? 'Read-only · Google Calendar'
                   : 'Calendar not connected'}
       </div>
