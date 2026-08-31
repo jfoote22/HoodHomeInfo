@@ -179,9 +179,21 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
         })}
         {!ourEvents.loading && rows.length === 0 && (
           <div style={{ fontFamily: mono, fontSize: 11, color: theme.dim, lineHeight: 1.5, marginTop: 4 }}>
-            Nothing on the calendar yet.
-            <br />
-            Tap a local event below, then <span style={{ color: theme.accentB }}>+ Add to calendar</span>.
+            {ourEvents.errors.length > 0 ? (
+              // A calendar that failed to load is not an empty calendar - saying "nothing yet"
+              // there hides a misconfigured key behind a friendly message.
+              <>
+                Couldn&apos;t reach the calendar.
+                <br />
+                <span style={{ color: theme.accentB }}>{ourEvents.errors[0]}</span>
+              </>
+            ) : (
+              <>
+                Nothing on the calendar yet.
+                <br />
+                Tap a local event below, then <span style={{ color: theme.accentB }}>+ Add to calendar</span>.
+              </>
+            )}
           </div>
         )}
         {ourEvents.loading && <div style={{ fontFamily: mono, fontSize: 11, color: theme.dim }}>Loading calendar…</div>}

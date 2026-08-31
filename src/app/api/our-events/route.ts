@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { listUpcoming, googleConfigured, calendarId, type CalendarEvent } from '../../../lib/googleCalendar';
+import { listUpcoming, googleConfigured, serviceAccountError, calendarId, type CalendarEvent } from '../../../lib/googleCalendar';
 import { parseIcs } from '../../../lib/ics';
 import { loadHermesDocument } from '../../../lib/hermesStore';
 import { parseHermesHtml, slug } from '../../../lib/hermesParse';
@@ -34,6 +34,11 @@ function dedupe(list: CalendarEvent[]): CalendarEvent[] {
 }
 
 async function fromGoogle(): Promise<CalendarEvent[]> {
+  // A key that is set but unreadable is a misconfiguration, not an empty calendar - throw so
+  // it lands in the response's `errors` instead of silently rendering as "nothing on the
+  // calendar yet".
+  const problem = serviceAccountError();
+  if (problem) throw new Error(problem);
   if (!googleConfigured()) return [];
   return listUpcoming(WINDOW_DAYS, 100);
 }
@@ -168,7 +173,9 @@ export async function GET(request: Request) {
     writable: googleConfigured(),
     fetchedAt: new Date().toISOString(),
   };
-  if (events.length || !cache) cache = { at: Date.now(), payload };
+  // Never pin a failed fetch in the cache - a transient Google error would otherwise show an
+  // empty calendar for the full TTL.
+  if (!errors.length && (events.length || !cache)) cache = { at: Date.now(), payload };
   return NextResponse.json(payload);
 }
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { googleConfigured } from '../../../../lib/googleCalendar';
 
 // Safe deploy diagnostic: reports WHICH configuration keys are present in this
 // deployment (true/false only - never values) so "is my env var actually set in
@@ -14,6 +15,12 @@ const KEYS = [
   'HERMES_EVENTS_PATH',
   'ANTHROPIC_API_KEY',
   'DEEPGRAM_API_KEY',
+  // "Our Events" sources - presence only, so an empty panel can be told apart from a
+  // deployment that was never given a calendar.
+  'GOOGLE_SERVICE_ACCOUNT_JSON',
+  'OUR_CALENDAR_ID',
+  'OUR_CALENDAR_ICS_URL',
+  'HERMES_EVENTS_URL',
 ];
 
 export async function GET() {
@@ -29,6 +36,9 @@ export async function GET() {
       gitSha: (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7) || null,
       present,
       grokReady: present.GROK_API || present.GROK_API_KEY || present.XAI_API_KEY,
+      // true only when GOOGLE_SERVICE_ACCOUNT_JSON actually parses into a usable key -
+      // distinguishes "set but malformed" from "set and working". Boolean, never a value.
+      googleCalendarReady: googleConfigured(),
     },
     { headers: { 'Cache-Control': 'no-store' } },
   );

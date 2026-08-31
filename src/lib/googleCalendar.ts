@@ -37,21 +37,44 @@ export function calendarId(): string {
   return (process.env.OUR_CALENDAR_ID || 'bravefoote@gmail.com').trim();
 }
 
+// Why the configured key could not be used, if it was set at all. A malformed key used to
+// be indistinguishable from "no calendar configured": both returned null and the panel just
+// looked like an empty calendar. Messages describe the shape of the problem, never a value.
+let saProblem: string | null = null;
+
 export function serviceAccount(): ServiceAccount | null {
+  saProblem = null;
   const raw = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim();
-  if (!raw) return null;
+  if (!raw) return null; // simply not configured - not an error
+  let text: string;
   try {
-    const text = raw.startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf-8');
-    const sa = JSON.parse(text);
-    if (sa.client_email && sa.private_key) return { client_email: sa.client_email, private_key: String(sa.private_key).replace(/\\n/g, '\n'), token_uri: sa.token_uri };
-    return null;
+    text = raw.startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf-8');
   } catch {
+    saProblem = 'GOOGLE_SERVICE_ACCOUNT_JSON is neither raw JSON nor valid base64';
     return null;
   }
+  let sa: any;
+  try {
+    sa = JSON.parse(text);
+  } catch {
+    saProblem = 'GOOGLE_SERVICE_ACCOUNT_JSON is set but is not valid JSON (raw JSON needs the private key newlines escaped as \\n - or store base64 of the whole key file)';
+    return null;
+  }
+  if (!sa?.client_email || !sa?.private_key) {
+    saProblem = 'GOOGLE_SERVICE_ACCOUNT_JSON parsed but has no client_email/private_key - is it a service-account key file?';
+    return null;
+  }
+  return { client_email: sa.client_email, private_key: String(sa.private_key).replace(/\\n/g, '\n'), token_uri: sa.token_uri };
 }
 
 export function googleConfigured(): boolean {
   return serviceAccount() !== null;
+}
+
+/** Describes a broken GOOGLE_SERVICE_ACCOUNT_JSON; null when it is usable or simply unset. */
+export function serviceAccountError(): string | null {
+  serviceAccount();
+  return saProblem;
 }
 
 function b64url(input: Buffer | string): string {

@@ -4,7 +4,10 @@
 // TV). Everything here pins to the dashboard's own timezone so output is identical
 // wherever it's rendered.
 
-export const DASHBOARD_TZ = 'America/Los_Angeles';
+// DASHBOARD_TZ / hourLabel live in tz.mjs so the pure helpers stay importable from a
+// plain `node --test` run; this module stays the single import site for app code.
+import { DASHBOARD_TZ } from './tz.mjs';
+export { DASHBOARD_TZ, hourLabel } from './tz.mjs';
 
 /** Offset (minutes east of UTC) that DASHBOARD_TZ has at the given instant. */
 export function tzOffsetMinutes(at: Date, tz: string = DASHBOARD_TZ): number {
@@ -42,9 +45,4 @@ export function fmtDate(d: Date, tz: string = DASHBOARD_TZ): string {
 /** "YYYY-MM-DD" in the dashboard timezone - handy as a grouping key. */
 export function dayKey(d: Date, tz: string = DASHBOARD_TZ): string {
   return d.toLocaleDateString('en-CA', { timeZone: tz });
-}
-
-/** Hour label like "1PM" in the dashboard timezone. */
-export function hourLabel(d: Date, tz: string = DASHBOARD_TZ): string {
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', timeZone: tz }).replace(/\s/g, '').toUpperCase();
 }
