@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { dayKey, hourLabel, DASHBOARD_TZ } from '../../../../lib/time';
+import { dayKey, DASHBOARD_TZ } from '../../../../lib/time';
+import { futureHourly } from '../../../../lib/weatherHourly.mjs';
 import { parseHermesWeather, weatherTextToIcon, type HermesWeather } from '../../../../lib/hermesParse';
 import { loadHermesDocument } from '../../../../lib/hermesStore';
 
@@ -196,20 +197,13 @@ export async function GET(request: Request) {
       processForecastData(weatherData.forecast.list) :
       generateDefaultForecast();
 
-    // Near-term hourly strip (OpenWeatherMap's free forecast tier is 3-hour resolution,
-    // so these are real forecast points at their actual times, not fabricated hourly data).
-    // item.dt is unix UTC; dt_txt is ALSO UTC (not local), so never parse dt_txt naively.
-    const hourly = (weatherData.forecast?.list || [])
-      .filter((item: any) => (item.dt ? item.dt * 1000 : 0) > Date.now() - 90 * 60 * 1000)
-      .slice(0, 4)
-      .map((item: any) => {
-        const dt = new Date((item.dt || 0) * 1000);
-        return {
-          label: hourLabel(dt),
-          tempF: Math.round(item.main?.temp ?? item.main?.temp_max ?? current.temp),
-          icon: mapWeatherToIcon(item.weather?.[0]?.id ?? 800)
-        };
-      });
+    // Near-term hourly strip: the next few forecast points, never one that has already
+    // happened and never a duplicate of the hero's current temperature.
+    const hourly = futureHourly(weatherData.forecast?.list || [], Date.now(), {
+      count: 4,
+      fallbackTempF: current.temp,
+      iconFor: mapWeatherToIcon,
+    });
 
     // Overlay the National Weather Service numbers Hermes publishes for Union: they are the
     // local observation, so they win for the headline conditions and the daily highs.

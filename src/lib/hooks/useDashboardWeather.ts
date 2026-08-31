@@ -58,10 +58,9 @@ export function useDashboardWeather() {
           windMph: json.current?.windSpeed ?? 5,
           windDir: json.current?.windDirection ?? 'NW',
           icon: json.current?.icon ?? 'sun',
-          hourly: [
-            { label: 'NOW', tempF: json.current?.temp ?? 55, icon: json.current?.icon ?? 'sun' },
-            ...(json.hourly || []),
-          ],
+          // Future forecast points only - the hero above already shows the current temp,
+          // so a synthetic "NOW" column here would just repeat it.
+          hourly: Array.isArray(json.hourly) ? json.hourly : [],
           daily: upcoming.map((d: any) => ({
             day: String(d.day || ''),
             hiF: Math.round(d.temp?.max ?? 0),

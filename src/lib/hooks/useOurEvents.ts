@@ -24,6 +24,9 @@ export interface OurEventsState {
   writable: boolean; // service account configured -> "+ Add" writes directly
   calendar: string;
   sources: string[];
+  /** Source failures reported by /api/our-events - a connected calendar that errored is not
+   *  the same thing as an empty one, so the panel can say which it is. */
+  errors: string[];
   fetchedAt: Date | null;
   refresh: () => void;
 }
@@ -60,7 +63,7 @@ export function matchesOurEvent(title: string, start: Date, ours: OurEvent[]): O
 }
 
 export function useOurEvents(): OurEventsState {
-  const [state, setState] = useState<Omit<OurEventsState, 'refresh'>>({ events: [], loading: true, writable: false, calendar: '', sources: [], fetchedAt: null });
+  const [state, setState] = useState<Omit<OurEventsState, 'refresh'>>({ events: [], loading: true, writable: false, calendar: '', sources: [], errors: [], fetchedAt: null });
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
@@ -91,7 +94,7 @@ export function useOurEvents(): OurEventsState {
             } as OurEvent;
           })
           .filter(Boolean);
-        setState({ events, loading: false, writable: Boolean(json.writable), calendar: json.calendar || '', sources: json.sources || [], fetchedAt: json.fetchedAt ? new Date(json.fetchedAt) : new Date() });
+        setState({ events, loading: false, writable: Boolean(json.writable), calendar: json.calendar || '', sources: json.sources || [], errors: Array.isArray(json.errors) ? json.errors : [], fetchedAt: json.fetchedAt ? new Date(json.fetchedAt) : new Date() });
       } catch (err) {
         console.error('Error loading our events:', err);
         if (!cancelled) setState((s) => ({ ...s, loading: false }));

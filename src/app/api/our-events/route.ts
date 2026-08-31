@@ -1,17 +1,27 @@
 import { NextResponse } from 'next/server';
-import { listUpcoming, googleConfigured, calendarId, type CalendarEvent } from '../../../lib/googleCalendar';
-import { parseIcs } from '../../../lib/ics';
+import { listUpcoming, googleConfigured, serviceAccountError, calendarId, type CalendarEvent } from '../../../lib/googleCalendar';
+import { parseIcs } from '../../../lib/ics.mjs';
+import { publicIcsUrls, publicCalendarApiUrl, mapPublicCalendarEvents, mergeOurEvents, publicReadError } from '../../../lib/ourEventsList.mjs';
 import { loadHermesDocument } from '../../../lib/hermesStore';
 import { parseHermesHtml, slug } from '../../../lib/hermesParse';
 
 const HERMES_EVENTS_URL = (process.env.HERMES_EVENTS_URL || '').trim();
 
-// "Our Events" = the household's own calendar (bravefoote@gmail.com).
+// "Our Events" = the household's own calendar - the same one the hover embed renders.
 // Sources, merged and deduped (first wins):
-//   1. Google Calendar via service account (GOOGLE_SERVICE_ACCOUNT_JSON + OUR_CALENDAR_ID)
-//   2. Hermes: the "Bravefoote Calendar" section of its HTML page (pushed document, or the LAN
+//   1. Google Calendar via service account (GOOGLE_SERVICE_ACCOUNT_JSON + OUR_CALENDAR_ID).
+//      Read *and* write; needed for the "+ Add" and delete buttons.
+//   2. Hermes: the household-calendar section of its HTML page (pushed document, or the LAN
 //      page via HERMES_EVENTS_URL) or an ourEvents[] array in its JSON push
-//   3. A private/public ICS feed (OUR_CALENDAR_ICS_URL)
+//   3. A private ICS feed (OUR_CALENDAR_ICS_URL)
+//   4. The public calendar in calendarId() - no credential at all, exactly like the embed:
+//      Calendar v3 events.list through the embed's own browser-shipped key, then the public
+//      .ics as a second try. This is the read path when none of the above is configured, so
+//      the list shows the calendar the embed is already showing instead of nothing.
+// Rows from here fill the panel's native list, which is its default view. An empty response
+// is not a claim that the calendar is empty - none of these paths can read a calendar that is
+// only shared with the household - so the panel falls back to the embed's agenda for the same
+// list rather than to "nothing on the calendar yet" (src/lib/calendarEmbed.mjs).
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const WINDOW_DAYS = 28;
@@ -19,23 +29,17 @@ const ICS_URL = (process.env.OUR_CALENDAR_ICS_URL || '').trim();
 
 let cache: { at: number; payload: any } | null = null;
 
-function norm(s: string) {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-}
+/** A source that answered (`ok`) is a connected calendar even when its next weeks are empty. */
+type SourceResult = { name: string; ok: boolean; events: CalendarEvent[] };
 
-function dedupe(list: CalendarEvent[]): CalendarEvent[] {
-  const seen = new Set<string>();
-  return list.filter((e) => {
-    const key = `${norm(e.title)}|${e.start.slice(0, 13)}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-async function fromGoogle(): Promise<CalendarEvent[]> {
-  if (!googleConfigured()) return [];
-  return listUpcoming(WINDOW_DAYS, 100);
+async function fromGoogle(): Promise<SourceResult> {
+  // A key that is set but unreadable is a misconfiguration, not an empty calendar - throw so
+  // it lands in the response's `errors` instead of silently rendering as "nothing on the
+  // calendar yet".
+  const problem = serviceAccountError();
+  if (problem) throw new Error(problem);
+  if (!googleConfigured()) return { name: 'google', ok: false, events: [] };
+  return { name: 'google', ok: true, events: await listUpcoming(WINDOW_DAYS, 100) };
 }
 
 function hermesJsonToOurs(parsed: any): CalendarEvent[] {
@@ -77,7 +81,7 @@ function hermesHtmlToOurs(body: string): CalendarEvent[] {
     }));
 }
 
-async function fromHermes(): Promise<CalendarEvent[]> {
+async function fromHermes(): Promise<SourceResult> {
   const out: CalendarEvent[] = [];
   // a) the document Hermes pushed (Blob on Vercel, data/ locally)
   try {
@@ -115,20 +119,90 @@ async function fromHermes(): Promise<CalendarEvent[]> {
       /* LAN page not reachable from here - fine */
     }
   }
-  return out;
+  // Only claim "via Howie" when the page actually carried household-calendar entries. Its
+  // other cards are local/community events and belong to the Local Events panel, not here.
+  return { name: 'hermes', ok: out.length > 0, events: out };
 }
 
-async function fromIcs(): Promise<CalendarEvent[]> {
-  if (!ICS_URL) return [];
+async function fetchIcs(url: string, timeoutMs: number): Promise<CalendarEvent[]> {
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 15000);
+  const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(ICS_URL, { cache: 'no-store', signal: controller.signal });
-    if (!res.ok) throw new Error(`ICS HTTP ${res.status}`);
-    return parseIcs(await res.text());
+    const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    const problem = publicReadError(res.status, 'ICS');
+    if (problem) throw new Error(problem);
+    const text = await res.text();
+    if (!/BEGIN:VCALENDAR/i.test(text)) throw new Error('ICS response was not a calendar feed');
+    return parseIcs(text);
   } finally {
     clearTimeout(t);
   }
+}
+
+async function fromIcs(): Promise<SourceResult> {
+  if (!ICS_URL) return { name: 'ics', ok: false, events: [] };
+  return { name: 'ics', ok: true, events: await fetchIcs(ICS_URL, 15000) };
+}
+
+/**
+ * The same Calendar v3 read the embed's own JavaScript makes from the browser, with the
+ * key Google ships in that JavaScript - no household secret, no service account, no env
+ * var. Preferred over the public .ics: Google serves it for every calendar the embed can
+ * render, and `singleEvents` expands recurring events, which the .ics parser cannot do.
+ */
+async function fetchPublicCalendarApi(url: string, timeoutMs: number): Promise<CalendarEvent[]> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    // 404 here is Google's answer for "this calendar is not shared publicly" - the same
+    // shape it returns for a calendar that does not exist at all. Throwing keeps it out of
+    // `sources`, so a miss is never reported as a calendar we read and found empty.
+    const problem = publicReadError(res.status, 'calendar API');
+    if (problem) throw new Error(problem);
+    return mapPublicCalendarEvents(await res.json());
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/**
+ * The credential-free read path: a calendar shared publicly can be read by anyone, which is
+ * the same permission the hover embed already needs. Skipped when a service account or an
+ * explicit feed is configured, since those read the same calendar with more fidelity (and
+ * can write).
+ *
+ * Both attempts fail for a calendar that is *not* shared publicly - the API answers 404 and
+ * the .ics 404/429 - which is this household's calendar today. A miss is logged as "not a
+ * source", never as an error, and it is emphatically not an empty calendar: the panel falls
+ * back to the embed for its list, and the embed renders the same events from the viewer's
+ * own browser, where the viewer's Google session is what grants access.
+ */
+async function fromPublicCalendar(): Promise<SourceResult> {
+  if (ICS_URL || googleConfigured()) return { name: 'public', ok: false, events: [] };
+  const id = calendarId();
+  let last = 'no calendar id';
+  const apiUrl = publicCalendarApiUrl(id, { windowDays: WINDOW_DAYS });
+  if (apiUrl) {
+    try {
+      return { name: 'public', ok: true, events: await fetchPublicCalendarApi(apiUrl, 10000) };
+    } catch (err) {
+      last = err instanceof Error ? err.message : String(err);
+    }
+  }
+  for (const url of publicIcsUrls(id)) {
+    try {
+      return { name: 'public', ok: true, events: await fetchIcs(url, 10000) };
+    } catch (err) {
+      last = err instanceof Error ? err.message : String(err);
+    }
+  }
+  // Named env vars only - never an id, a URL, a key or an event title.
+  console.warn(
+    `our-events: public calendar unreadable (${last}) - the list will be empty. ` +
+      'For rows, share the calendar publicly in Calendar settings, or set OUR_CALENDAR_ICS_URL or GOOGLE_SERVICE_ACCOUNT_JSON.',
+  );
+  return { name: 'public', ok: false, events: [] };
 }
 
 export async function GET(request: Request) {
@@ -136,29 +210,19 @@ export async function GET(request: Request) {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS && searchParams.get('refresh') !== '1') {
     return NextResponse.json({ ...cache.payload, cached: true });
   }
-  const results = await Promise.allSettled([fromGoogle(), fromHermes(), fromIcs()]);
-  const names = ['google', 'hermes', 'ics'];
-  const sources: string[] = [];
+  const settled = await Promise.allSettled([fromGoogle(), fromHermes(), fromIcs(), fromPublicCalendar()]);
+  const names = ['google', 'hermes', 'ics', 'public'];
   const errors: string[] = [];
-  const all: CalendarEvent[] = [];
-  results.forEach((r, i) => {
+  const groups: SourceResult[] = [];
+  settled.forEach((r, i) => {
     if (r.status === 'fulfilled') {
-      if (r.value.length) sources.push(names[i]);
-      all.push(...r.value);
+      groups.push(r.value);
     } else {
-      errors.push(`${names[i]}: ${String(r.reason).slice(0, 160)}`);
+      errors.push(`${names[i]}: ${String(r.reason?.message ?? r.reason).slice(0, 200)}`);
       console.error(`our-events ${names[i]} failed:`, r.reason);
     }
   });
-  const now = Date.now();
-  const events = dedupe(all)
-    .filter((e) => {
-      const start = new Date(e.start).getTime();
-      // All-day events stay listed through the whole day, not just the first two hours.
-      const end = e.end ? new Date(e.end).getTime() : start + (e.allDay ? 24 : 2) * 3600 * 1000;
-      return end >= now - 3600 * 1000 && start <= now + WINDOW_DAYS * 86400000;
-    })
-    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  const { events, sources } = mergeOurEvents(groups, Date.now(), { windowDays: WINDOW_DAYS });
 
   const payload = {
     events,
@@ -168,7 +232,9 @@ export async function GET(request: Request) {
     writable: googleConfigured(),
     fetchedAt: new Date().toISOString(),
   };
-  if (events.length || !cache) cache = { at: Date.now(), payload };
+  // Never pin a failed fetch in the cache - a transient Google error would otherwise show an
+  // empty calendar for the full TTL.
+  if (!errors.length && (events.length || !cache)) cache = { at: Date.now(), payload };
   return NextResponse.json(payload);
 }
 

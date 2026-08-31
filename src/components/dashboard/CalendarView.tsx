@@ -2,31 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
+import { calendarEmbedUrl, resolveCalendarId } from '../../lib/calendarEmbed.mjs';
 
 // Google Calendar's own embed UI, shown over the live panels while someone is using it
 // (see useCalendarReveal in MarineDashboard). The embed is read-only and only shows a
 // calendar the viewer can see — for the kiosk that means the calendar must be public
 // (Calendar settings → Access permissions → "Make available to public").
 
-const TZ = 'America/Los_Angeles';
-const CALENDAR_ID = process.env.NEXT_PUBLIC_OUR_CALENDAR_ID || 'bravefoote@gmail.com';
+const CALENDAR_ID = resolveCalendarId(process.env.NEXT_PUBLIC_OUR_CALENDAR_ID);
 // Google's embed never refreshes itself; reload it when it's re-revealed after this long.
 const STALE_MS = 5 * 60 * 1000;
 /** Dispatch on window after changing the calendar through the API so the embed reloads. */
 export const CALENDAR_CHANGED_EVENT = 'hh:calendar-changed';
-
-function embedUrl(): string {
-  const u = new URL('https://calendar.google.com/calendar/embed');
-  u.searchParams.set('src', CALENDAR_ID);
-  u.searchParams.set('ctz', TZ);
-  u.searchParams.set('mode', 'WEEK');
-  u.searchParams.set('showTitle', '0');
-  u.searchParams.set('showPrint', '0');
-  u.searchParams.set('showCalendars', '0');
-  u.searchParams.set('showTz', '0');
-  u.searchParams.set('wkst', '1');
-  return u.toString();
-}
 
 export default function CalendarView({ theme, active }: { theme: DashboardTheme; active: boolean }) {
   const [loadKey, setLoadKey] = useState(0);
@@ -75,7 +62,7 @@ export default function CalendarView({ theme, active }: { theme: DashboardTheme;
       <iframe
         key={loadKey}
         title="Google Calendar"
-        src={embedUrl()}
+        src={calendarEmbedUrl(CALENDAR_ID, { mode: 'WEEK' }) ?? undefined}
         style={{
           flex: 1,
           minHeight: 0,
