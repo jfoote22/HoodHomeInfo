@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { useDashboardData } from './DashboardDataContext';
 import { CALENDAR_CHANGED_EVENT } from './CalendarView';
+import { calendarEmbedUrl, resolveCalendarId, shouldShowAgendaEmbed } from '../../lib/calendarEmbed.mjs';
 import type { OurEvent } from '../../lib/hooks/useOurEvents';
 import { useAutoScroll } from '../../lib/hooks/useAutoScroll';
 
@@ -14,6 +15,15 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
   const rows = ourEvents.events;
   const mono = FONT_FAMILIES.mono;
   const [pending, setPending] = useState<{ id: string; state: DeleteState } | null>(null);
+
+  // With no rows of our own, show the calendar itself rather than empty or error copy: the
+  // embed is the viewer's browser asking Google directly, so it keeps working when none of
+  // the server-side read paths are configured (see shouldShowAgendaEmbed). Same host and
+  // same src as the hover CalendarView - only the mode differs.
+  const calendarId = resolveCalendarId(process.env.NEXT_PUBLIC_OUR_CALENDAR_ID, ourEvents.calendar);
+  const agendaSrc = shouldShowAgendaEmbed({ loading: ourEvents.loading, rows, calendarId })
+    ? calendarEmbedUrl(calendarId, { mode: 'AGENDA' })
+    : null;
 
   // Same slow ping-pong scroll as Local Events when the list outgrows the panel; holds
   // still while the pointer is over it or a delete confirmation is open.
@@ -89,9 +99,26 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
         </span>
       </div>
 
+      {agendaSrc && (
+        <iframe
+          title="Our calendar"
+          src={agendaSrc}
+          style={{
+            flex: 1,
+            minHeight: 0,
+            width: '100%',
+            border: 0,
+            borderRadius: 14,
+            background: '#fff',
+            // Google's embed is light-only; invert it to sit on the dark theme (as CalendarView does).
+            filter: theme.isLight ? undefined : 'invert(0.92) hue-rotate(180deg)',
+          }}
+        />
+      )}
+
       <div
         ref={viewportRef}
-        style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden' }}
+        style={{ position: 'relative', flex: agendaSrc ? 0 : 1, minHeight: 0, overflow: 'hidden' }}
         onMouseEnter={() => {
           hoverRef.current = true;
           pausedRef.current = true;
@@ -177,11 +204,11 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
             </div>
           );
         })}
-        {!ourEvents.loading && rows.length === 0 && (
+        {!ourEvents.loading && rows.length === 0 && !agendaSrc && (
           <div style={{ fontFamily: mono, fontSize: 11, color: theme.dim, lineHeight: 1.5, marginTop: 4 }}>
             {ourEvents.errors.length > 0 ? (
-              // A calendar that failed to load is not an empty calendar - saying "nothing yet"
-              // there hides a misconfigured key behind a friendly message.
+              // Only reachable with no calendar to embed - otherwise the calendar is on
+              // screen and an error about how we read it is noise.
               <>
                 Couldn&apos;t reach the calendar.
                 <br />
@@ -212,7 +239,9 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
               ? 'Read-only · public Google Calendar'
               : ourEvents.sources.includes('hermes')
                 ? 'Via Howie'
-                : 'Calendar not connected'}
+                : agendaSrc
+                  ? 'Read-only · Google Calendar'
+                  : 'Calendar not connected'}
       </div>
     </div>
   );

@@ -17,6 +17,9 @@ const HERMES_EVENTS_URL = (process.env.HERMES_EVENTS_URL || '').trim();
 //   4. The public .ics of the calendar in calendarId() - no credential at all, exactly like
 //      the embed. This is the read path when none of the above is configured, so the list
 //      shows the calendar the embed is already showing instead of nothing.
+// When none of them yields a row, the panel shows the calendar through the Google embed in
+// AGENDA mode (src/lib/calendarEmbed.mjs) - so an empty response here means "no rows to
+// merge", not "no calendar on screen".
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const WINDOW_DAYS = 28;
@@ -143,6 +146,12 @@ async function fromIcs(): Promise<SourceResult> {
  * which is the same permission the hover embed already needs. Skipped when a service
  * account or an explicit feed is configured, since those read the same calendar with more
  * fidelity (and recurring events expanded).
+ *
+ * A calendar that is public to the embed does not always serve this feed - Google answers
+ * 404 for plenty of them. That is a missing bonus, not a broken dashboard: the panel falls
+ * back to the agenda embed (see shouldShowAgendaEmbed), which reads the calendar from the
+ * viewer's own browser. So a miss here is logged and reported as "not a source", never as
+ * an error - error copy over a calendar we can still show would be a lie.
  */
 async function fromPublicCalendar(): Promise<SourceResult> {
   if (ICS_URL || googleConfigured()) return { name: 'public', ok: false, events: [] };
@@ -156,9 +165,11 @@ async function fromPublicCalendar(): Promise<SourceResult> {
     }
   }
   // Named env vars only - never an id, a URL or a key.
-  throw new Error(
-    `public calendar feed unreadable (${last}) - make the calendar public in Calendar settings, or set OUR_CALENDAR_ICS_URL or GOOGLE_SERVICE_ACCOUNT_JSON`,
+  console.warn(
+    `our-events: public calendar feed unreadable (${last}) - showing the calendar via the embed instead. ` +
+      'For a merged list, make the calendar public in Calendar settings, or set OUR_CALENDAR_ICS_URL or GOOGLE_SERVICE_ACCOUNT_JSON.',
   );
+  return { name: 'public', ok: false, events: [] };
 }
 
 export async function GET(request: Request) {
