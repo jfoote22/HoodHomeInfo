@@ -201,7 +201,7 @@ export async function GET(request: Request) {
     // item.dt is unix UTC; dt_txt is ALSO UTC (not local), so never parse dt_txt naively.
     const hourly = (weatherData.forecast?.list || [])
       .filter((item: any) => (item.dt ? item.dt * 1000 : 0) > Date.now() - 90 * 60 * 1000)
-      .slice(0, 4)
+      .slice(0, 5)
       .map((item: any) => {
         const dt = new Date((item.dt || 0) * 1000);
         return {

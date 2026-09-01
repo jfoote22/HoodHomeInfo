@@ -82,30 +82,25 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         </div>
       </div>
 
-      {/* Today's hourly strip */}
+      {/* Today's hourly strip - upcoming 3-hour forecast points (no "now"; that's the hero above) */}
       <div style={{ display: 'flex', gap: 8 }}>
-        {(weather?.hourly || []).slice(0, 5).map((h, i) => {
-          const isNow = h.label === 'NOW';
-          return (
-            <div
-              key={i}
-              style={{
-                flex: 1,
-                background: isNow ? `${theme.accentA}14` : 'transparent',
-                border: isNow ? `1px solid ${theme.accentA}29` : '1px solid transparent',
-                borderRadius: 12,
-                padding: '9px 0',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: isNow ? theme.accentA : theme.muted }}>{h.label}</div>
-              <div style={{ margin: '3px 0' }}>
-                <WeatherIcon icon={h.icon} size={22} theme={theme} />
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: theme.text }}>{h.tempF}°</div>
+        {(weather?.hourly || []).slice(0, 5).map((h, i) => (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              borderRadius: 12,
+              padding: '9px 0',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.muted }}>{h.label}</div>
+            <div style={{ margin: '3px 0' }}>
+              <WeatherIcon icon={h.icon} size={22} theme={theme} />
             </div>
-          );
-        })}
+            <div style={{ fontSize: 15, fontWeight: 600, color: theme.text }}>{h.tempF}°</div>
+          </div>
+        ))}
       </div>
 
       {/* Next three days - quieter, secondary */}
@@ -210,7 +205,7 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
         <span style={{ color: theme.muted }}>{tide?.highLowSummary || ''}</span>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: FONT_FAMILIES.mono, fontSize: 13, color: theme.bodySecondary }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontFamily: FONT_FAMILIES.mono, fontSize: 13, color: theme.bodySecondary, marginBottom: 4 }}>
         <span style={{ fontSize: 11, letterSpacing: '.16em', color: theme.eyebrow, textTransform: 'uppercase' }}>Tide Direction</span>
         <span>
           <span style={{ color: theme.text, fontWeight: 600 }}>{tide?.trendRateLabel || '—'}</span>{' '}

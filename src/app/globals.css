@@ -381,6 +381,10 @@ button, select, input {
   animation-name: hhTicker;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
+  /* Keep the marquee on its own compositor layer so the scroll stays smooth on the Pi. */
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 @keyframes hhTicker {

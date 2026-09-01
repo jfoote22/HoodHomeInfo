@@ -64,6 +64,7 @@ function FitBoundsOnce({ onReady }: { onReady: (map: LeafletMap) => void }) {
   const map = useMap();
   useEffect(() => {
     map.fitBounds(HOOD_CANAL_BOUNDS, { padding: [10, 10], animate: false });
+    map.setZoom(map.getZoom() + 1); // one click closer than the fitted Hood Canal view
     onReady(map);
   }, [map, onReady]);
   return null;
