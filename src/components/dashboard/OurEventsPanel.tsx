@@ -3,7 +3,6 @@
 import { useRef, useState } from 'react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { useDashboardData } from './DashboardDataContext';
-import { CALENDAR_CHANGED_EVENT } from './CalendarView';
 import type { OurEvent } from '../../lib/hooks/useOurEvents';
 import { useAutoScroll } from '../../lib/hooks/useAutoScroll';
 
@@ -36,7 +35,6 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
       if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
       setPending(null);
       ourEvents.refresh();
-      window.dispatchEvent(new Event(CALENDAR_CHANGED_EVENT));
     } catch (err) {
       console.error('delete failed:', err);
       setPending({ id: e.id, state: 'error' });
