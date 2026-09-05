@@ -14,16 +14,23 @@ const ACARTIA_URL = 'https://acartia.io/api/v1/sightings/current';
 // Admiralty Inlet / southern Whidbey basin (matches HOOD_CANAL_BOUNDS in MarineMapPanel,
 // padded a bit so pins near the edge still count).
 const BBOX = { minLat: 47.0, maxLat: 48.8, minLng: -123.7, maxLng: -122.1 };
-const MAX_AGE_HOURS = 24 * 7;
-const MAX_SIGHTINGS = 40;
+
+// The display window is bounded by AGE, never by a report count. An earlier count cap cut
+// the newest 40 reports and kept whatever time span they happened to cover — and since daily
+// volume swings from 2 reports to 55, that silently shrank a "7 day" map to a single busy
+// day and dropped every quieter species with it. A fixed window is predictable instead.
+const MAX_AGE_HOURS = 24 * 5;
+// Purely a guard against an anomalous feed flooding the DOM, not a display limit: a normal
+// 5-day window lands near 120 reports.
+const MAX_REPORTS = 300;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 // Orca Network relays a *moving* pod as a stream of reports rather than one record, so a
-// single pod tracked up Saratoga Passage can produce 40+ rows in a day. Ungrouped, those
-// duplicates bury every other species and consume the whole MAX_SIGHTINGS budget, leaving
-// the map a smear of identical pins and the "Latest sightings" box repeating one pod three
-// times. Collapse a run of reports about the same group into one sighting at its most
-// recent position; `reports` remembers how many observations backed it.
+// single pod tracked up Saratoga Passage can produce 40+ rows in a day. Rendering each as its
+// own full pin turns the map into a smear and makes the "Latest sightings" box repeat one pod
+// three times. Group them instead: the newest report becomes the labelled sighting and the
+// older positions ride along as its `trail`, so the pod's movement is still on the map but
+// reads as one animal group. Nothing is discarded.
 // Reports are matched on plausible travel rather than a fixed radius, because the two cases
 // look nothing alike in the data: an overnight lull leaves an 11-hour gap in which the pod
 // drifted 2 km (same group), while two different groups reporting the same headcount show up
@@ -35,6 +42,13 @@ const CLUSTER_SPEED_KMH = 12;
 
 export type Species = 'orca' | 'humpback' | 'gray' | 'minke' | 'porpoise' | 'other';
 
+/** An earlier reported position of the same group, drawn behind the pin as its track. */
+export interface TrailPoint {
+  lat: number;
+  lng: number;
+  hoursAgo: number;
+}
+
 export interface LiveSighting {
   id: string;
   lat: number;
@@ -43,13 +57,17 @@ export interface LiveSighting {
   label: string;
   count: number | null;
   comments: string;
+  /** The observer's own words, trimmed to something a wall display can read at a glance. */
+  note: string;
   photoUrl: string | null;
   trusted: boolean;
   observedAt: string; // ISO, UTC
   hoursAgo: number;
   source: string;
-  /** How many raw Acartia reports were collapsed into this sighting (1 = a single report). */
+  /** How many raw Acartia reports were grouped into this sighting (1 = a single report). */
   reports: number;
+  /** Older positions of this same group, newest first. Empty when reports === 1. */
+  trail: TrailPoint[];
 }
 
 interface AcartiaRow {
@@ -68,7 +86,16 @@ interface AcartiaRow {
   data_source_comments?: string;
 }
 
-let cache: { at: number; payload: { sightings: LiveSighting[]; fetchedAt: string; source: string } } | null = null;
+interface SightingsPayload {
+  sightings: LiveSighting[];
+  groups24h: number;
+  reports24h: number;
+  windowDays: number;
+  fetchedAt: string;
+  source: string;
+}
+
+let cache: { at: number; payload: SightingsPayload } | null = null;
 
 function classify(type: string, comments: string): Species {
   const t = `${type} ${comments}`.toLowerCase();
@@ -114,6 +141,30 @@ function cleanComments(raw: string | undefined): string {
     .trim();
 }
 
+// Acartia comments arrive as "[Orca Network] J pod spread out northbound (Nikol Damato, Kat
+// Martin) (ID Bart Rulon)". The relay tag and the observer credits are the same on every row,
+// so on a wall display they cost a line and say nothing. Strip them and keep the observation
+// itself, which is the part worth reading: "J pod spread out northbound".
+const NOTE_MAX = 72;
+
+function condenseComment(raw: string): string {
+  let s = raw.replace(/^\s*\[[^\]]*\]\s*/, '').trim();
+  // Drop trailing attribution groups, of which there may be several.
+  let prev = '';
+  while (s !== prev) {
+    prev = s;
+    s = s.replace(/\s*\([^()]*\)\s*$/, '').trim();
+  }
+  s = s.replace(/\s+/g, ' ').replace(/[.,;:\-]+$/, '').trim();
+  if (!s) return '';
+  if (s.length > NOTE_MAX) {
+    const cut = s.slice(0, NOTE_MAX);
+    const space = cut.lastIndexOf(' ');
+    s = `${space > NOTE_MAX * 0.6 ? cut.slice(0, space) : cut}…`;
+  }
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function parseCreated(created: string | undefined): Date | null {
   if (!created) return null;
   // Acartia timestamps come back as "YYYY-MM-DD HH:MM:SS" in UTC.
@@ -138,21 +189,21 @@ function sameGroup(a: LiveSighting, b: LiveSighting): boolean {
   return distanceKm(a, b) <= CLUSTER_SLACK_KM + CLUSTER_SPEED_KMH * gapHours;
 }
 
-/** Input must be sorted newest-first. Each cluster keeps the newest report's position and
- *  chains backwards from its own oldest member, so a pod tracked across a whole day stays
- *  one sighting instead of thirty. */
+/** Input must be sorted newest-first. Each group chains backwards from its own oldest member
+ *  so far, so a pod tracked across a whole day stays one sighting. The newest report supplies
+ *  the pin and the note; the rest become its trail. */
 function clusterReports(list: LiveSighting[]): LiveSighting[] {
-  const clusters: { newest: LiveSighting; oldest: LiveSighting; reports: number }[] = [];
+  const groups: LiveSighting[][] = [];
   for (const s of list) {
-    const hit = clusters.find((c) => sameGroup(c.oldest, s));
-    if (hit) {
-      hit.oldest = s;
-      hit.reports += 1;
-    } else {
-      clusters.push({ newest: s, oldest: s, reports: 1 });
-    }
+    const hit = groups.find((g) => sameGroup(g[g.length - 1], s));
+    if (hit) hit.push(s);
+    else groups.push([s]);
   }
-  return clusters.map((c) => ({ ...c.newest, reports: c.reports }));
+  return groups.map((members) => ({
+    ...members[0],
+    reports: members.length,
+    trail: members.slice(1).map((m) => ({ lat: m.lat, lng: m.lng, hoursAgo: m.hoursAgo })),
+  }));
 }
 
 async function fetchAcartia(): Promise<AcartiaRow[]> {
@@ -207,22 +258,34 @@ export async function GET(request: Request) {
           label: labelFor(species, comments, r.type || ''),
           count: Number.isFinite(countNum) && countNum > 0 ? countNum : null,
           comments,
+          note: condenseComment(comments),
           photoUrl: r.photo_url ? String(r.photo_url) : null,
           trusted: Boolean(Number(r.trusted)),
           observedAt: observed.toISOString(),
           hoursAgo: Math.max(0, Math.round(hoursAgo * 10) / 10),
           source: r.data_source_entity || r.data_source_name || 'Acartia',
           reports: 1,
+          trail: [],
         };
       })
       .filter((s): s is LiveSighting => s !== null)
-      .sort((a, b) => a.hoursAgo - b.hoursAgo);
+      .sort((a, b) => a.hoursAgo - b.hoursAgo)
+      .slice(0, MAX_REPORTS);
 
-    // Group first, then cap: capping raw reports let one heavily-tracked pod use every slot
-    // and pushed the rest of the week — humpback, minke, porpoise, gray — off the map.
-    const sightings = clusterReports(reported).slice(0, MAX_SIGHTINGS);
+    const sightings = clusterReports(reported);
+    // Both numbers, because they answer different questions: how many animal groups are out
+    // there, and how much was actually seen and called in.
+    const groups24h = sightings.filter((s) => s.hoursAgo <= 24).length;
+    const reports24h = reported.filter((s) => s.hoursAgo <= 24).length;
 
-    const payload = { sightings, fetchedAt: new Date().toISOString(), source: 'acartia' };
+    const payload = {
+      sightings,
+      groups24h,
+      reports24h,
+      windowDays: MAX_AGE_HOURS / 24,
+      fetchedAt: new Date().toISOString(),
+      source: 'acartia',
+    };
     cache = { at: Date.now(), payload };
     return NextResponse.json(payload);
   } catch (err) {

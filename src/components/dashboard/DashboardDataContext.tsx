@@ -78,7 +78,15 @@ export function buildBriefing(data: DashboardData): string {
     const orcas = recent.filter((s) => s.species === 'orca').length;
     const nearest = sightings.sightings[0];
     if (recent.length) {
-      parts.push(`${recent.length} whale sighting${recent.length === 1 ? '' : 's'} reported in Puget Sound in the last 24h${orcas ? ` (${orcas} orca)` : ''}; latest: ${nearest.label} ${nearest.hoursAgoLabel}.`);
+      // Match the map badge: groups and raw reports are different numbers, and a day when one
+      // pod is called in 27 times should not sound like a day with one lone report.
+      const reports = recent.reduce((n, s) => n + s.reports, 0);
+      const volume =
+        reports > recent.length
+          ? `${recent.length} whale group${recent.length === 1 ? '' : 's'} (${reports} reports)`
+          : `${recent.length} whale sighting${recent.length === 1 ? '' : 's'}`;
+      const note = nearest.note ? `, "${nearest.note}"` : '';
+      parts.push(`${volume} reported in Puget Sound in the last 24h${orcas ? ` (${orcas} orca)` : ''}; latest: ${nearest.label} ${nearest.hoursAgoLabel}${note}.`);
     } else {
       parts.push(`No whale reports in the last 24h; most recent was ${nearest.label} ${nearest.hoursAgoLabel}.`);
     }

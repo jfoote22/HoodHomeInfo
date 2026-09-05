@@ -116,6 +116,22 @@ that knowledge.
   identical reports of one pod stop labelling themselves "J-Pod Orca" and "Orca" at random.
 - Map reserves a small strip at the top so the numbered pins clear the title band.
 
+**Follow-up the same day, after review:** grouping alone read as *less* information than
+before, because a pod's whole day of movement collapsed to a single dot. Reworked so nothing
+is hidden:
+
+- **Trails.** A group's older reported positions now draw behind its pin as a dotted thread
+  with a small dot per report, so J pod's run up Admiralty Inlet is visible as a track rather
+  than either a smear of duplicate pins or one lonely dot.
+- **The observer's words.** The feed carries ~110 distinct comments a week averaging 74
+  characters, and the wall display showed none of them — they were buried in map popups,
+  which are useless on a TV. "Latest sightings" now prints a condensed note per row, with the
+  relay tag and observer credits stripped: "J pod spread out northbound".
+- **Honest counts.** The badge reads "1 group · 27 reports · 24h" when those differ, so a
+  heavily-tracked day no longer reads as a quiet one. Same wording in the AI briefing.
+- **Window, not a cap.** The count cap is gone entirely, replaced by a fixed 5-day window
+  with pins fading by age. `MAX_REPORTS` remains only as a guard against a runaway feed.
+
 ## Recently done (this session, 2026-09-01)
 
 - Removed the Google Calendar **iframe embed** that forced per-tab sign-in and rendered an

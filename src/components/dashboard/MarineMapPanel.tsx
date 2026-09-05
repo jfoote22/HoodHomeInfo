@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import { DivIcon, LatLngBounds, type Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
@@ -23,6 +23,15 @@ const SPECIES_LABEL: Record<SightingSpecies, string> = {
   other: 'Whale',
 };
 
+/** Fades a pin across the 5-day window so age reads as depth rather than a cliff at day 3. */
+function ageAlpha(hoursAgo: number): number {
+  if (hoursAgo <= 24) return 1;
+  if (hoursAgo <= 48) return 0.78;
+  if (hoursAgo <= 72) return 0.62;
+  if (hoursAgo <= 96) return 0.5;
+  return 0.4;
+}
+
 function speciesColor(species: SightingSpecies, theme: DashboardTheme): string {
   if (species === 'orca') return theme.map.accentA; // blue - per design
   if (species === 'porpoise') return '#9fb3c8'; // quiet grey-blue so porpoises don't shout
@@ -32,7 +41,7 @@ function speciesColor(species: SightingSpecies, theme: DashboardTheme): string {
 function pingIcon(color: string, isLight: boolean, hoursAgo: number, recent: boolean, rank?: number) {
   // Older reports fade; anything from the last 24h keeps the pulsing ring. The three newest
   // sightings carry a numbered tag matching the "Latest sightings" box.
-  const alpha = rank ? 1 : hoursAgo <= 24 ? 1 : hoursAgo <= 72 ? 0.7 : 0.45;
+  const alpha = rank ? 1 : ageAlpha(hoursAgo);
   const size = recent ? 34 : 26;
   const dot = recent ? 12 : 9;
   const ink = isLight ? '#fff' : '#0d1729';
@@ -85,7 +94,7 @@ function formatClock(now: Date) {
 
 export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
   const { sightings: sightingsState, now } = useDashboardData();
-  const { sightings, last24h, isPlaceholder } = sightingsState;
+  const { sightings, last24h, reports24h, windowDays, isPlaceholder } = sightingsState;
   const [map, setMap] = useState<LeafletMap | null>(null);
 
   // Esri's gray canvas basemaps need no API key from any origin (CARTO's free tiles refuse
@@ -105,11 +114,16 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
     return order.filter((s) => present.has(s)).slice(0, 3);
   }, [sightings]);
 
+  // Groups and reports answer different questions — how many animal groups are out there, and
+  // how much was actually seen and called in. A day when one pod is tracked 55 times should
+  // not read the same as a day with one lone report, so show both when they differ.
   const liveLabel = isPlaceholder
     ? 'EXAMPLE · no live feed'
     : last24h > 0
-      ? `LIVE · ${last24h} sighting${last24h === 1 ? '' : 's'} · 24h`
-      : `LIVE · ${sightings.length} this week`;
+      ? reports24h > last24h
+        ? `LIVE · ${last24h} group${last24h === 1 ? '' : 's'} · ${reports24h} reports · 24h`
+        : `LIVE · ${last24h} sighting${last24h === 1 ? '' : 's'} · 24h`
+      : `LIVE · ${sightings.length} in ${windowDays} days`;
 
   const glassPill: React.CSSProperties = {
     display: 'inline-flex',
@@ -144,6 +158,41 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
         <Marker position={UNION_WA} icon={unionIcon(theme.map.accentB, theme.map.ink)}>
           <Popup>Union, WA</Popup>
         </Marker>
+
+        {/* Trails first: a group's earlier reported positions, drawn as a faint thread with a
+            small dot at each report. Vector layers live in Leaflet's overlayPane (z-index 400)
+            and markers in markerPane (600), so the labelled pins always sit on top. */}
+        {sightings.map((s: GeoSighting) =>
+          s.trail.length ? (
+            <Polyline
+              key={`t-${s.id}`}
+              positions={[[s.lat, s.lng], ...s.trail.map((p) => [p.lat, p.lng] as [number, number])]}
+              pathOptions={{
+                color: speciesColor(s.species, theme),
+                weight: 2,
+                opacity: 0.3 * ageAlpha(s.hoursAgo),
+                dashArray: '4 5',
+                interactive: false,
+              }}
+            />
+          ) : null,
+        )}
+        {sightings.flatMap((s: GeoSighting) =>
+          s.trail.map((p, i) => (
+            <CircleMarker
+              key={`d-${s.id}-${i}`}
+              center={[p.lat, p.lng]}
+              radius={2.5}
+              pathOptions={{
+                stroke: false,
+                fillColor: speciesColor(s.species, theme),
+                fillOpacity: 0.5 * ageAlpha(p.hoursAgo),
+                interactive: false,
+              }}
+            />
+          )),
+        )}
+
         {sightings.map((s: GeoSighting) => (
           <Marker
             key={s.id}
@@ -206,7 +255,7 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
           {latest.map((s, i) => {
             const color = speciesColor(s.species, theme);
             return (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <div key={s.id} style={{ display: 'flex', gap: 10, minWidth: 0 }}>
                 <span
                   style={{
                     width: 20,
@@ -221,15 +270,38 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
+                    marginTop: 1,
                   }}
                 >
                   {i + 1}
                 </span>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#f4f8fd', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {s.label}
-                  {s.count ? <span style={{ color: '#c3d3e4', fontWeight: 400 }}> · {s.count}</span> : null}
-                </span>
-                <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: '#c3d3e4', flexShrink: 0 }}>{s.hoursAgoLabel}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#f4f8fd', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {s.label}
+                      {s.count ? <span style={{ color: '#c3d3e4', fontWeight: 400 }}> · {s.count}</span> : null}
+                    </span>
+                    <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: '#c3d3e4', flexShrink: 0 }}>{s.hoursAgoLabel}</span>
+                  </div>
+                  {/* The observer's own words — the part that says what was actually seen. */}
+                  {s.note ? (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        lineHeight: 1.3,
+                        color: '#b9cade',
+                        marginTop: 1,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {s.note}
+                      {s.reports > 1 ? <span style={{ color: '#8ba3bd' }}> · {s.reports} reports</span> : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             );
           })}
