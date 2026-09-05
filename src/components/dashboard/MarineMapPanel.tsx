@@ -63,7 +63,14 @@ function unionIcon(color: string, ink: string) {
 function FitBoundsOnce({ onReady }: { onReady: (map: LeafletMap) => void }) {
   const map = useMap();
   useEffect(() => {
-    map.fitBounds(HOOD_CANAL_BOUNDS, { padding: [10, 10], animate: false });
+    // Reserve a strip at the top so the newest pins — the numbered ones the "Latest sightings"
+    // box points at — don't clip off the panel's top edge. Kept small on purpose: the fitted
+    // bounds barely fit at this zoom, so a deeper reserve pushes Union off the bottom instead.
+    map.fitBounds(HOOD_CANAL_BOUNDS, {
+      paddingTopLeft: [10, 56],
+      paddingBottomRight: [10, 10],
+      animate: false,
+    });
     map.setZoom(map.getZoom() + 1); // one click closer than the fitted Hood Canal view
     onReady(map);
   }, [map, onReady]);
@@ -149,6 +156,7 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
               {s.count ? ` · ${s.count}` : ''}
               <br />
               {s.hoursAgoLabel}
+              {s.reports > 1 ? ` · ${s.reports} reports` : ''}
               {s.comments ? (
                 <>
                   <br />

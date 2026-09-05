@@ -101,6 +101,21 @@ that knowledge.
 
 ---
 
+## Recently done (2026-09-04)
+
+- **Marine map was showing one pod instead of a week of the Sound.** Orca Network relays a
+  *moving* pod as a stream of separate reports, so J pod tracked up Saratoga Passage produced
+  63 of the feed's records in two days. The route kept every one as its own pin, then capped
+  the result at 40 — so the cap was spent entirely on that one pod, the cut landed 26 hours
+  back, and every gray whale, minke, humpback and porpoise from the rest of the week was
+  dropped. The map read as a smear of identical dots and "Latest sightings" listed the same
+  pod three times. Reports about one group are now collapsed into a single sighting at its
+  most recent position (matched on species, headcount, and whether a whale could actually
+  have swum the distance in the elapsed time), and the cap is applied after grouping.
+- Species labels now read Acartia's `type` field instead of only the freeform comment, so
+  identical reports of one pod stop labelling themselves "J-Pod Orca" and "Orca" at random.
+- Map reserves a small strip at the top so the numbered pins clear the title band.
+
 ## Recently done (this session, 2026-09-01)
 
 - Removed the Google Calendar **iframe embed** that forced per-tab sign-in and rendered an

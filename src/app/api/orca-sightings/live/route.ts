@@ -18,6 +18,21 @@ const MAX_AGE_HOURS = 24 * 7;
 const MAX_SIGHTINGS = 40;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
+// Orca Network relays a *moving* pod as a stream of reports rather than one record, so a
+// single pod tracked up Saratoga Passage can produce 40+ rows in a day. Ungrouped, those
+// duplicates bury every other species and consume the whole MAX_SIGHTINGS budget, leaving
+// the map a smear of identical pins and the "Latest sightings" box repeating one pod three
+// times. Collapse a run of reports about the same group into one sighting at its most
+// recent position; `reports` remembers how many observations backed it.
+// Reports are matched on plausible travel rather than a fixed radius, because the two cases
+// look nothing alike in the data: an overnight lull leaves an 11-hour gap in which the pod
+// drifted 2 km (same group), while two different groups reporting the same headcount show up
+// 45 km apart six minutes apart (impossible for a whale). Roughly 12 km of positional slack
+// plus 12 km/h of sustained travel separates them cleanly.
+const CLUSTER_HOURS = 14; // long enough to bridge a night with no observers out
+const CLUSTER_SLACK_KM = 12;
+const CLUSTER_SPEED_KMH = 12;
+
 export type Species = 'orca' | 'humpback' | 'gray' | 'minke' | 'porpoise' | 'other';
 
 export interface LiveSighting {
@@ -33,6 +48,8 @@ export interface LiveSighting {
   observedAt: string; // ISO, UTC
   hoursAgo: number;
   source: string;
+  /** How many raw Acartia reports were collapsed into this sighting (1 = a single report). */
+  reports: number;
 }
 
 interface AcartiaRow {
@@ -63,15 +80,21 @@ function classify(type: string, comments: string): Species {
   return 'other';
 }
 
-function labelFor(species: Species, comments: string): string {
+// `type` is Acartia's own species string ("Southern Resident Orca", "Gray Whale", …) and is
+// far more reliable than the freeform comment. Reading only the comment made identical
+// reports of one pod label themselves differently — "J pod northbound" became "J-Pod Orca"
+// while "Spread out Js northbound" fell through to a bare "Orca" — which then blocked them
+// from grouping together.
+function labelFor(species: Species, comments: string, type: string): string {
   const c = comments;
+  const both = `${type} ${comments}`;
   if (species === 'orca') {
-    const pod = c.match(/\b([JKL])[\s-]?pod\b/i);
+    const pod = c.match(/\b([JKL])[\s-]?pod\b/i) || c.match(/\b([JKL])s\b/);
     if (pod) return `${pod[1].toUpperCase()}-Pod Orca`;
-    if (/southern resident|\bsrkw\b/i.test(c)) return 'Resident Orca';
+    if (/southern resident|\bsrkw\b/i.test(both)) return 'Resident Orca';
     const t = c.match(/\bT\d{2,3}[A-Z]?\d?s?\b/);
     if (t) return `Bigg's Orca · ${t[0]}`;
-    if (/bigg|transient/i.test(c)) return "Bigg's Orca";
+    if (/bigg|transient/i.test(both)) return "Bigg's Orca";
     return 'Orca';
   }
   if (species === 'humpback') return 'Humpback Whale';
@@ -97,6 +120,39 @@ function parseCreated(created: string | undefined): Date | null {
   const iso = created.includes('T') ? created : created.replace(' ', 'T');
   const d = new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : `${iso}Z`);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Equirectangular distance in km — accurate to well under a percent over the Salish Sea. */
+function distanceKm(a: LiveSighting, b: LiveSighting): number {
+  const x = (b.lng - a.lng) * Math.cos(((a.lat + b.lat) * Math.PI) / 360) * 111.32;
+  const y = (b.lat - a.lat) * 110.57;
+  return Math.hypot(x, y);
+}
+
+/** Two reports describe the same group if they agree on species and headcount and the pod
+ *  could actually have swum between them in the elapsed time. */
+function sameGroup(a: LiveSighting, b: LiveSighting): boolean {
+  if (a.species !== b.species || a.count !== b.count) return false;
+  const gapHours = Math.abs(a.hoursAgo - b.hoursAgo);
+  if (gapHours > CLUSTER_HOURS) return false;
+  return distanceKm(a, b) <= CLUSTER_SLACK_KM + CLUSTER_SPEED_KMH * gapHours;
+}
+
+/** Input must be sorted newest-first. Each cluster keeps the newest report's position and
+ *  chains backwards from its own oldest member, so a pod tracked across a whole day stays
+ *  one sighting instead of thirty. */
+function clusterReports(list: LiveSighting[]): LiveSighting[] {
+  const clusters: { newest: LiveSighting; oldest: LiveSighting; reports: number }[] = [];
+  for (const s of list) {
+    const hit = clusters.find((c) => sameGroup(c.oldest, s));
+    if (hit) {
+      hit.oldest = s;
+      hit.reports += 1;
+    } else {
+      clusters.push({ newest: s, oldest: s, reports: 1 });
+    }
+  }
+  return clusters.map((c) => ({ ...c.newest, reports: c.reports }));
 }
 
 async function fetchAcartia(): Promise<AcartiaRow[]> {
@@ -127,7 +183,7 @@ export async function GET(request: Request) {
     const rows = await fetchAcartia();
     const now = Date.now();
 
-    const sightings: LiveSighting[] = rows
+    const reported: LiveSighting[] = rows
       .map((r): LiveSighting | null => {
         const lat = Number(r.latitude);
         const lng = Number(r.longitude);
@@ -148,7 +204,7 @@ export async function GET(request: Request) {
           lat,
           lng,
           species,
-          label: labelFor(species, comments),
+          label: labelFor(species, comments, r.type || ''),
           count: Number.isFinite(countNum) && countNum > 0 ? countNum : null,
           comments,
           photoUrl: r.photo_url ? String(r.photo_url) : null,
@@ -156,11 +212,15 @@ export async function GET(request: Request) {
           observedAt: observed.toISOString(),
           hoursAgo: Math.max(0, Math.round(hoursAgo * 10) / 10),
           source: r.data_source_entity || r.data_source_name || 'Acartia',
+          reports: 1,
         };
       })
       .filter((s): s is LiveSighting => s !== null)
-      .sort((a, b) => a.hoursAgo - b.hoursAgo)
-      .slice(0, MAX_SIGHTINGS);
+      .sort((a, b) => a.hoursAgo - b.hoursAgo);
+
+    // Group first, then cap: capping raw reports let one heavily-tracked pod use every slot
+    // and pushed the rest of the week — humpback, minke, porpoise, gray — off the map.
+    const sightings = clusterReports(reported).slice(0, MAX_SIGHTINGS);
 
     const payload = { sightings, fetchedAt: new Date().toISOString(), source: 'acartia' };
     cache = { at: Date.now(), payload };

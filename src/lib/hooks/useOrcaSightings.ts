@@ -15,6 +15,8 @@ export interface GeoSighting {
   comments: string;
   count: number | null;
   observedAt: string;
+  /** How many raw reports the API collapsed into this sighting (1 = a single report). */
+  reports: number;
 }
 
 export interface SightingsState {
@@ -33,9 +35,9 @@ function ageLabel(hours: number): string {
 }
 
 const PLACEHOLDER: GeoSighting[] = [
-  { id: 'demo-1', lat: 47.55, lng: -122.95, label: 'J-Pod Orca', species: 'orca', hoursAgo: 2, hoursAgoLabel: '2h ago', comments: 'Example sighting', count: null, observedAt: '' },
-  { id: 'demo-2', lat: 48.15, lng: -122.75, label: 'Orca', species: 'orca', hoursAgo: 4, hoursAgoLabel: '4h ago', comments: 'Example sighting', count: null, observedAt: '' },
-  { id: 'demo-3', lat: 48.4, lng: -122.6, label: 'Minke Whale', species: 'minke', hoursAgo: 4, hoursAgoLabel: '4h ago', comments: 'Example sighting', count: null, observedAt: '' },
+  { id: 'demo-1', lat: 47.55, lng: -122.95, label: 'J-Pod Orca', species: 'orca', hoursAgo: 2, hoursAgoLabel: '2h ago', comments: 'Example sighting', count: null, observedAt: '', reports: 1 },
+  { id: 'demo-2', lat: 48.15, lng: -122.75, label: 'Orca', species: 'orca', hoursAgo: 4, hoursAgoLabel: '4h ago', comments: 'Example sighting', count: null, observedAt: '', reports: 1 },
+  { id: 'demo-3', lat: 48.4, lng: -122.6, label: 'Minke Whale', species: 'minke', hoursAgo: 4, hoursAgoLabel: '4h ago', comments: 'Example sighting', count: null, observedAt: '', reports: 1 },
 ];
 
 export function useOrcaSightings(): SightingsState {
@@ -62,6 +64,7 @@ export function useOrcaSightings(): SightingsState {
           comments: String(s.comments || ''),
           count: s.count ?? null,
           observedAt: String(s.observedAt || ''),
+          reports: Number(s.reports) > 0 ? Number(s.reports) : 1,
         }));
 
         if (parsed.length === 0) {
