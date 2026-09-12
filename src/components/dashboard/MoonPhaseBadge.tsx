@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
 import { moonInfo } from '../../lib/moon';
 
@@ -47,6 +47,14 @@ function MoonGlyph({ fraction, size, theme }: { fraction: number; size: number; 
 }
 
 export default function MoonPhaseBadge({ theme, now }: { theme: DashboardTheme; now: Date }) {
+  // This is the only clock-derived thing in the dashboard that reaches the server-rendered
+  // HTML, so it holds a fixed-size blank until after hydration: the server's idea of "now"
+  // and the browser's can land in different hours (and in a production build the server
+  // HTML is prerendered at build time), which React reports as a hydration mismatch. One
+  // blank frame is cheaper than the whole page erroring out.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
   // Recompute at most once per hour - moon phase doesn't move faster than that matters.
   const hourKey = Math.floor(now.getTime() / 3600000);
   const moon = useMemo(() => moonInfo(new Date(hourKey * 3600000)), [hourKey]);
@@ -59,6 +67,11 @@ export default function MoonPhaseBadge({ theme, now }: { theme: DashboardTheme; 
         ? { label: 'Full', date: moon.nextFull }
         : { label: 'New', date: moon.nextNew };
   const nextLabel = next ? `${next.label} ${next.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' })}` : '';
+
+  if (!hydrated) {
+    // Same footprint as the real badge (34px glyph + two 10px lines + gaps) so nothing shifts.
+    return <div style={{ width: 34, height: 34 + 2 * 13 + 6, flexShrink: 0, margin: '0 4px' }} aria-hidden />;
+  }
 
   return (
     <div

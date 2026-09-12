@@ -87,8 +87,11 @@ function FitBoundsOnce({ onReady }: { onReady: (map: LeafletMap) => void }) {
 }
 
 function formatClock(now: Date) {
-  const day = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
-  const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  // Pinned to Pacific like every other date format here: the label reads "Union, WA", so it
+  // should show canal time even when the page is opened from a browser in another zone.
+  const tz = 'America/Los_Angeles';
+  const day = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz }).toUpperCase();
+  const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
   return `${day} · ${time}`;
 }
 

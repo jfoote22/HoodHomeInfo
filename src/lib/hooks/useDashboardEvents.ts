@@ -26,10 +26,14 @@ export interface EventsState {
 
 const TZ = 'America/Los_Angeles';
 
+// Fixed dates on purpose: these render during SSR *and* during hydration, so anything
+// derived from `new Date()` here would be frozen at server module-load time and differ
+// from the browser's value, which React reports as a hydration mismatch. The days match
+// the labels (Jun 15/16/22, 2024 - Sat/Sun/Sat).
 const PLACEHOLDER: DashboardEvent[] = [
-  { id: 'demo-1', title: 'Hood Canal Seafood Festival', dateLabel: 'Jun 15 · Union waterfront', dayLabel: 'SAT', imageUrl: null, url: null, start: new Date(), venue: null, source: 'demo' },
-  { id: 'demo-2', title: 'Union Farmers Market', dateLabel: 'Jun 16 · Alderbrook lawn', dayLabel: 'SUN', imageUrl: null, url: null, start: new Date(), venue: null, source: 'demo' },
-  { id: 'demo-3', title: 'Waterfront Art Walk', dateLabel: 'Jun 22 · Belfair', dayLabel: 'SAT', imageUrl: null, url: null, start: new Date(), venue: null, source: 'demo' },
+  { id: 'demo-1', title: 'Hood Canal Seafood Festival', dateLabel: 'Jun 15 · Union waterfront', dayLabel: 'SAT', imageUrl: null, url: null, start: new Date('2024-06-15T19:00:00Z'), venue: null, source: 'demo' },
+  { id: 'demo-2', title: 'Union Farmers Market', dateLabel: 'Jun 16 · Alderbrook lawn', dayLabel: 'SUN', imageUrl: null, url: null, start: new Date('2024-06-16T17:00:00Z'), venue: null, source: 'demo' },
+  { id: 'demo-3', title: 'Waterfront Art Walk', dateLabel: 'Jun 22 · Belfair', dayLabel: 'SAT', imageUrl: null, url: null, start: new Date('2024-06-22T19:00:00Z'), venue: null, source: 'demo' },
 ];
 
 function dayKey(d: Date): string {

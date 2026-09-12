@@ -69,10 +69,13 @@ function EventChip({ e, theme }: { e: OurEvent; theme: DashboardTheme }) {
 }
 
 export default function CalendarView({ theme }: { theme: DashboardTheme; active?: boolean }) {
-  const { ourEvents } = useDashboardData();
+  const { ourEvents, now } = useDashboardData();
   const [view, setView] = useState<ViewMode>('month');
-  const today = useMemo(() => new Date(), []);
-  const todayKey = localKey(today);
+  // Pinned to the day, not the minute: the grid only needs to be rebuilt when the date
+  // flips. Reading the shared clock (instead of a `new Date()` frozen at mount) is what
+  // makes the kiosk roll over to the new day after it has been up for a week.
+  const todayKey = localKey(now);
+  const today = useMemo(() => now, [todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const mono = FONT_FAMILIES.mono;
 
   const byDay = useMemo(() => {

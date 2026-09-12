@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
+import { useDashboardData } from './DashboardDataContext';
 import { useSportsTeam, GameSummary, NewsItem } from '../../lib/hooks/useSportsTeam';
 import { useMlbLive, MlbLiveGame } from '../../lib/hooks/useMlbLive';
 
@@ -52,11 +53,14 @@ function OppLogo({ g, size }: { g: GameSummary; size: number }) {
   );
 }
 
-function relDay(iso: string): string {
+// `now` is threaded in from the shared clock rather than read from `new Date()`: a value
+// minted during render is frozen for the life of the render, so on a kiosk that stays up
+// for days TODAY/TMRW would never roll over, and the SSR and hydration renders could
+// disagree across a midnight boundary.
+function relDay(iso: string, now: Date): string {
   const tz = 'America/Los_Angeles';
   const key = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: tz });
   const d = new Date(iso);
-  const now = new Date();
   if (key(d) === key(now)) return 'TODAY';
   if (key(d) === key(new Date(now.getTime() + 86400000))) return 'TMRW';
   if (key(d) === key(new Date(now.getTime() - 86400000))) return 'YDAY';
@@ -212,6 +216,7 @@ function LiveMarinersBody({ game, b }: { game: MlbLiveGame; b: (typeof BRAND)['m
 
 export default function SportsPanel({ team, theme }: { team: 'mariners' | 'seahawks'; theme: DashboardTheme }) {
   const { data, error } = useSportsTeam(team);
+  const { now } = useDashboardData();
   const mlb = useMlbLive(team === 'mariners');
   const mlbGame = team === 'mariners' && mlb?.live && mlb.game ? mlb.game : null;
   const b = BRAND[team];
@@ -277,7 +282,7 @@ export default function SportsPanel({ team, theme }: { team: 'mariners' | 'seaha
               {isLive && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', animation: 'dashboardBlink 1.6s infinite' }} />}
               {isLive ? 'Live now' : 'Last game'}
             </span>
-            {featured && <span style={{ fontFamily: mono, fontSize: 10, color: 'rgba(255,255,255,.55)' }}>{isLive ? featured.statusDetail : relDay(featured.date)}</span>}
+            {featured && <span style={{ fontFamily: mono, fontSize: 10, color: 'rgba(255,255,255,.55)' }}>{isLive ? featured.statusDetail : relDay(featured.date, now)}</span>}
           </div>
           {featured ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
@@ -319,7 +324,7 @@ export default function SportsPanel({ team, theme }: { team: 'mariners' | 'seaha
                   {g.isHome ? 'vs' : '@'} {g.opponentAbbrev || g.opponent}
                 </div>
                 <div style={{ fontFamily: mono, fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  <span style={{ color: b.highlight }}>{relDay(g.date)}</span>
+                  <span style={{ color: b.highlight }}>{relDay(g.date, now)}</span>
                   <span style={{ color: 'rgba(255,255,255,.65)' }}> · {g.timeLabel.replace(' PM', 'p').replace(' AM', 'a')}</span>
                 </div>
               </div>
