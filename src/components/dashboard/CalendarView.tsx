@@ -28,6 +28,38 @@ function addDays(d: Date, n: number): Date {
   return r;
 }
 
+// Recycling goes out every other Tuesday, starting the week of Sep 15, 2026.
+const RECYCLING_ANCHOR = new Date(2026, 8, 15);
+function isRecyclingDay(d: Date): boolean {
+  if (d.getDay() !== 2) return false;
+  const days = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - RECYCLING_ANCHOR.getTime()) / 86400000);
+  return ((days / 7) % 2 + 2) % 2 === 0;
+}
+
+/** Small yellow recycling badge for the calendar's recycling-pickup Tuesdays. */
+function RecycleBadge({ size = 14 }: { size?: number }) {
+  return (
+    <span
+      title="Recycling day"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: '#eab308',
+        color: '#1a1206',
+        fontSize: size * 0.7,
+        lineHeight: 1,
+        flexShrink: 0,
+      }}
+    >
+      ♻
+    </span>
+  );
+}
+
 /** The local days an event covers (all-day events can span several; Google's end date is exclusive). */
 function eventDays(e: OurEvent): string[] {
   const start = new Date(e.start);
@@ -204,7 +236,10 @@ export default function CalendarView({ theme }: { theme: DashboardTheme; active?
                         overflow: 'hidden',
                       }}
                     >
-                      <div style={{ fontFamily: mono, fontSize: 12, fontWeight: 700, color: isToday ? theme.accentB : theme.muted, textAlign: 'right' }}>{day.getDate()}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        {isRecyclingDay(day) ? <RecycleBadge /> : <span />}
+                        <div style={{ fontFamily: mono, fontSize: 12, fontWeight: 700, color: isToday ? theme.accentB : theme.muted, textAlign: 'right' }}>{day.getDate()}</div>
+                      </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' }}>
                         {evs.slice(0, 3).map((e, i) => (
                           <EventChip key={`${e.id}-${i}`} e={e} theme={theme} />
@@ -239,9 +274,14 @@ export default function CalendarView({ theme }: { theme: DashboardTheme; active?
                   overflow: 'hidden',
                 }}
               >
-                <div style={{ textAlign: 'center' }}>
+                <div style={{ textAlign: 'center', position: 'relative' }}>
                   <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.1em', color: isToday ? theme.accentB : theme.dim, textTransform: 'uppercase' }}>{WEEKDAYS[day.getDay()]}</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: isToday ? theme.accentB : theme.text }}>{day.getDate()}</div>
+                  {isRecyclingDay(day) && (
+                    <div style={{ position: 'absolute', top: -2, right: 4 }}>
+                      <RecycleBadge size={16} />
+                    </div>
+                  )}
                 </div>
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {evs.length ? (
