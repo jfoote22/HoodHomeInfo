@@ -5,6 +5,7 @@ import type { DashboardTheme } from '../theme';
 import type { Season } from './season';
 import { FallBackdrop, FallForeground } from './fall';
 import { WinterBackdrop, WinterForeground } from './winter';
+import { SpringBackdrop, SpringForeground } from './spring';
 
 // Two decoration layers per season, both pointer-events:none so nothing on the dashboard
 // changes behaviour:
@@ -20,6 +21,7 @@ type LayerProps = { theme: DashboardTheme };
 const DECOR: Partial<Record<Season, { back?: (p: LayerProps) => ReactNode; front?: (p: LayerProps) => ReactNode }>> = {
   fall: { back: FallBackdrop, front: FallForeground },
   winter: { back: WinterBackdrop, front: WinterForeground },
+  spring: { back: SpringBackdrop, front: SpringForeground },
 };
 
 /** Seasons that have art, in calendar order, for the season button to cycle through. */

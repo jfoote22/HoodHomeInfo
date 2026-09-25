@@ -492,3 +492,20 @@ button, select, input {
   from { transform: scaleY(0.15); }
   to { transform: scaleY(1); }
 }
+
+/* Spring (seasonal/spring.tsx): the corner branches reach in from the screen corner, and the
+   meadow reuses .hh-snow-build to grow up from the bottom. */
+.hh-bloom {
+  transform-origin: 0% 0%;
+  animation: hhBloom 30s ease-out both;
+}
+@keyframes hhBloom {
+  from { transform: scale(0.35); opacity: 0; }
+  30% { opacity: 1; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Spring palette: fresh teal water under the blossom-pink chrome. */
+.hh-dark-tiles-spring {
+  filter: brightness(0.62) sepia(0.7) hue-rotate(150deg) saturate(1.15) contrast(1.08);
+}

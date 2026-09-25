@@ -149,9 +149,77 @@ const WINTER_LIGHT: Overrides = {
   map: WINTER_MAP_CHROME,
 };
 
+// Spring: cherry blossom and daffodils. Blossom pink leads, daffodil yellow is the warm accent,
+// over a dusky plum-rose evening (dark) or a pale blush morning (light).
+const SPRING_MAP_CHROME = {
+  chromeRgb: '38,24,44',
+  scrimRgb: '22,12,26',
+  chromeEyebrow: '#f9c6d9',
+  chromeText: '#ead9e3',
+  chromeNote: '#d8c3cf',
+  chromeFaint: '#a88c9c',
+  chromePill: '#f6e8ef',
+};
+
+const SPRING_DARK: Overrides = {
+  screenBg: 'radial-gradient(120% 90% at 50% 0%, #3d2a48 0%, #251a2e 55%, #1a1320 100%)',
+  panelBg: '#221826',
+  panelBorder: 'rgba(249,198,217,.12)',
+  panelShadow: '0 18px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,225,238,.06)',
+
+  text: '#faf1f5',
+  eyebrow: '#b598a9',
+  muted: '#c2a8b7',
+  dim: '#7f6675',
+  bodySecondary: '#ecdbe4',
+
+  commandBarBg: '#1c1420',
+  commandBarBorder: 'rgba(249,198,217,.12)',
+
+  accentA: '#f7a8c8',
+  accentA2: '#e879a8',
+  accentB: '#facc15',
+  iconAccent: '#fcd34d',
+
+  eventStripeA: '#2e2034',
+  eventStripeB: '#38283f',
+  dayPillBg: 'rgba(247,168,200,.14)',
+  dayPillText: '#fbc2da',
+
+  map: { ...SPRING_MAP_CHROME, darkTileClass: 'hh-dark-tiles-spring' },
+};
+
+const SPRING_LIGHT: Overrides = {
+  screenBg: 'linear-gradient(160deg, #fdf3f7, #f1dde8)',
+  panelBg: 'rgba(255,255,255,.72)',
+  panelBorder: 'rgba(255,255,255,.95)',
+  panelShadow: '0 20px 50px rgba(120,50,85,.12)',
+
+  text: '#2a1622',
+  eyebrow: '#8a6a7b',
+  muted: '#7a5c6c',
+  dim: '#b39aa8',
+  bodySecondary: '#4b3040',
+
+  commandBarBorder: 'rgba(42,22,34,.12)',
+  commandBarShadow: '0 6px 16px rgba(120,50,85,.08)',
+
+  accentA: '#c2417a',
+  accentA2: '#e0679a',
+  accentB: '#ca8a04',
+
+  eventStripeA: '#f3dde8',
+  eventStripeB: '#e9cddc',
+  dayPillBg: 'rgba(194,65,122,.1)',
+  dayPillText: '#a3325f',
+
+  map: SPRING_MAP_CHROME,
+};
+
 const PALETTES: Partial<Record<Season, { dark: Overrides; light: Overrides }>> = {
   fall: { dark: FALL_DARK, light: FALL_LIGHT },
   winter: { dark: WINTER_DARK, light: WINTER_LIGHT },
+  spring: { dark: SPRING_DARK, light: SPRING_LIGHT },
 };
 
 export function seasonalTheme(base: DashboardTheme, season: Season | null): DashboardTheme {

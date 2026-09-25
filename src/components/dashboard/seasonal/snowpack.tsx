@@ -1,36 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { DashboardTheme } from '../theme';
+import { DESIGN_WIDTH, seeded, usePanelSlots } from './panelSlots';
 
-// Snow that has settled: a cap along the top of every panel and a bank along the bottom of the
-// screen. Panels size themselves with flexbox, so their positions aren't known up front; this
-// measures every element tagged `data-hh-panel` inside the dashboard grid and re-measures once a
-// second (cheap: under ten rects), which also catches the calendar fading in over the live panels.
-// Panels inside an aria-hidden wrapper (the faded-out side of that crossfade) lose their caps,
-// with the same fade.
-// Both grow in over the first half minute after load, via .hh-snow-build in globals.css.
+// Snow that has settled: a cap along the top of every panel (positions from usePanelSlots) and a
+// bank along the bottom of the screen. Both grow in over the first half minute after load, via
+// .hh-snow-build in globals.css.
 
-const DESIGN_WIDTH = 1920; // the dashboard is laid out at 1920×1080 and scaled to fit
 const CAP_RISE = 16; // how far the drift sits above the panel's top edge
 const CAP_SINK = 6; // how far it laps over the edge onto the panel
-
-interface Slot {
-  key: string;
-  x: number;
-  y: number;
-  w: number;
-  radius: number;
-  visible: boolean;
-}
-
-function seeded(seed: number) {
-  let x = seed;
-  return () => {
-    x = (x * 1103515245 + 12345) % 2147483648;
-    return x / 2147483648;
-  };
-}
 
 /** Smooth closed outline through (x, y) points along the top, closed along `baseY`. */
 function driftPath(points: [number, number][], baseY: number): string {
@@ -70,44 +49,6 @@ function capShape(w: number, radius: number, seed: number) {
   return { path: driftPath(top, base), icicles };
 }
 
-function useSlots(ref: React.RefObject<HTMLDivElement>) {
-  const [slots, setSlots] = useState<Slot[]>([]);
-  useEffect(() => {
-    const grid = ref.current?.closest('[data-hh-grid]') as HTMLElement | null;
-    if (!grid) return;
-    let last = '';
-    const measure = () => {
-      const g = grid.getBoundingClientRect();
-      const scale = g.width / DESIGN_WIDTH || 1;
-      const next: Slot[] = Array.from(grid.querySelectorAll<HTMLElement>('[data-hh-panel]')).map((el, i) => {
-        const r = el.getBoundingClientRect();
-        return {
-          key: String(i),
-          x: Math.round((r.left - g.left) / scale),
-          y: Math.round((r.top - g.top) / scale),
-          w: Math.round(r.width / scale),
-          radius: parseFloat(getComputedStyle(el).borderTopLeftRadius) || 16,
-          visible: !el.closest('[aria-hidden="true"]'),
-        };
-      });
-      const sig = JSON.stringify(next);
-      if (sig !== last) {
-        last = sig;
-        setSlots(next);
-      }
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(grid);
-    const id = setInterval(measure, 1000);
-    return () => {
-      ro.disconnect();
-      clearInterval(id);
-    };
-  }, [ref]);
-  return slots;
-}
-
 function snowColors(theme: DashboardTheme) {
   return theme.isLight
     ? { top: '#ffffff', bottom: '#e3f0fa', edge: 'rgba(90,130,175,.45)', ice: 'rgba(170,215,245,.9)', shadow: 'drop-shadow(0 2px 3px rgba(40,90,140,.25))' }
@@ -116,7 +57,7 @@ function snowColors(theme: DashboardTheme) {
 
 export function SnowCaps({ theme }: { theme: DashboardTheme }) {
   const ref = useRef<HTMLDivElement>(null);
-  const slots = useSlots(ref);
+  const slots = usePanelSlots(ref);
   const c = snowColors(theme);
   const h = CAP_RISE + CAP_SINK + 16; // room below the cap for icicles
 
