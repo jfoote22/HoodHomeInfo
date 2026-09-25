@@ -28,6 +28,8 @@ export interface DashboardTheme {
 
   // Primary blue used for UI chrome: wake word, last-response card, tide line, NOW chip.
   accentA: string;
+  // Second stop for accentA gradients (AI mic button, orb, Add-to-calendar button).
+  accentA2: string;
   // Amber used for trend text + tide "now" dot pulse.
   accentB: string;
   // Amber used specifically for weather icon fills (slightly different hex per theme in source).
@@ -50,8 +52,33 @@ export interface DashboardTheme {
     waterInk: string;
     accentA: string;
     accentB: string;
+    /** Glass chrome floating over the map (title, legend pills, sightings box, zoom), as
+     *  "r,g,b" so each overlay can pick its own alpha. */
+    chromeRgb: string;
+    /** Top/bottom legibility scrims over the tiles, also "r,g,b". */
+    scrimRgb: string;
+    chromeEyebrow: string; // "UNION, WA" and "LATEST SIGHTINGS"
+    chromeText: string; // clock, ages, headcounts, zoom glyphs
+    chromeNote: string; // observer notes
+    chromeFaint: string; // "· 12 reports"
+    chromePill: string; // legend + LIVE pill text
+    /** CSS class that recolours the gray basemap on dark themes (see globals.css). */
+    darkTileClass: string;
   };
 }
+
+// The map's overlay chrome is the same navy glass in both themes (it sits on map tiles, not
+// on the page background).
+const MAP_CHROME = {
+  chromeRgb: '10,20,32',
+  scrimRgb: '6,12,22',
+  chromeEyebrow: '#9ec7ef',
+  chromeText: '#c3d3e4',
+  chromeNote: '#b9cade',
+  chromeFaint: '#8ba3bd',
+  chromePill: '#dbe6f2',
+  darkTileClass: 'hh-dark-tiles',
+};
 
 export const COMMAND_CENTER: DashboardTheme = {
   id: 'command-center',
@@ -74,6 +101,7 @@ export const COMMAND_CENTER: DashboardTheme = {
   commandBarBorder: 'rgba(255,255,255,.09)',
 
   accentA: '#38bdf8',
+  accentA2: '#0ea5e9',
   accentB: '#f59e0b',
   iconAccent: '#f5b301',
 
@@ -92,6 +120,7 @@ export const COMMAND_CENTER: DashboardTheme = {
     waterInk: '#7fb4e6',
     accentA: '#38bdf8',
     accentB: '#f59e0b',
+    ...MAP_CHROME,
   },
 };
 
@@ -118,6 +147,7 @@ export const DAYLIGHT_GLASS: DashboardTheme = {
   commandBarShadow: '0 6px 16px rgba(31,54,84,.08)',
 
   accentA: '#0284c7',
+  accentA2: '#0ea5e9',
   accentB: '#ea9008',
   iconAccent: '#f5a623',
 
@@ -136,6 +166,7 @@ export const DAYLIGHT_GLASS: DashboardTheme = {
     waterInk: '#cfe4fb',
     accentA: '#38bdf8',
     accentB: '#f5a623',
+    ...MAP_CHROME,
   },
 };
 

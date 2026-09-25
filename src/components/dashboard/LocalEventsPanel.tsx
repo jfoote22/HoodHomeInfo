@@ -193,7 +193,7 @@ function EventRow({
                 fontSize: 14,
                 fontWeight: 600,
                 color: theme.isLight ? '#fff' : '#04121f',
-                background: addState === 'added' ? theme.accentB : `linear-gradient(135deg, ${theme.accentA}, #0ea5e9)`,
+                background: addState === 'added' ? theme.accentB : `linear-gradient(135deg, ${theme.accentA}, ${theme.accentA2})`,
                 border: 'none',
                 borderRadius: 999,
                 padding: '8px 14px',

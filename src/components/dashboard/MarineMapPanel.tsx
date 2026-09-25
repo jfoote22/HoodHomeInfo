@@ -132,13 +132,13 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 8,
-    background: 'rgba(10,20,32,.6)',
+    background: `rgba(${theme.map.chromeRgb},.6)`,
     border: '1px solid rgba(255,255,255,.1)',
     backdropFilter: 'blur(8px)',
     borderRadius: 999,
     padding: '7px 14px',
     fontSize: 14,
-    color: '#dbe6f2',
+    color: theme.map.chromePill,
   };
 
   return (
@@ -156,7 +156,7 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
           url={tileUrl}
           attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, HERE, Garmin, OpenStreetMap contributors · sightings <a href="https://acartia.io">Acartia</a>'
           maxNativeZoom={16}
-          className={theme.isLight ? undefined : 'hh-dark-tiles'}
+          className={theme.isLight ? undefined : theme.map.darkTileClass}
         />
         <Marker position={UNION_WA} icon={unionIcon(theme.map.accentB, theme.map.ink)}>
           <Popup>Union, WA</Popup>
@@ -208,13 +208,13 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
       </MapContainer>
 
       {/* Legibility scrims */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 150, background: 'linear-gradient(180deg, rgba(6,12,22,.78), transparent)', pointerEvents: 'none', zIndex: OVERLAY_Z - 1 }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 70, background: 'linear-gradient(0deg, rgba(6,12,22,.55), transparent)', pointerEvents: 'none', zIndex: OVERLAY_Z - 1 }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 150, background: `linear-gradient(180deg, rgba(${theme.map.scrimRgb},.78), transparent)`, pointerEvents: 'none', zIndex: OVERLAY_Z - 1 }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 70, background: `linear-gradient(0deg, rgba(${theme.map.scrimRgb},.55), transparent)`, pointerEvents: 'none', zIndex: OVERLAY_Z - 1 }} />
 
       {/* Title + clock */}
       <div style={{ position: 'absolute', top: 26, left: 30, pointerEvents: 'none', zIndex: OVERLAY_Z }}>
-        <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 13, letterSpacing: '.24em', color: '#9ec7ef', textTransform: 'uppercase' }}>
-          Union, WA <span style={{ color: '#c3d3e4', opacity: 0.9 }}>· {formatClock(now)}</span>
+        <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 13, letterSpacing: '.24em', color: theme.map.chromeEyebrow, textTransform: 'uppercase' }}>
+          Union, WA <span style={{ color: theme.map.chromeText, opacity: 0.9 }}>· {formatClock(now)}</span>
         </div>
         <div style={{ fontFamily: FONT_FAMILIES.display, fontWeight: 700, fontSize: 46, lineHeight: 0.95, letterSpacing: 1, color: '#f4f8fd' }}>MARINE MAP</div>
       </div>
@@ -227,7 +227,7 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
             top: 96,
             left: 30,
             width: 300,
-            background: 'rgba(10,20,32,.62)',
+            background: `rgba(${theme.map.chromeRgb},.62)`,
             border: '1px solid rgba(255,255,255,.1)',
             backdropFilter: 'blur(8px)',
             borderRadius: 14,
@@ -239,7 +239,7 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
             zIndex: OVERLAY_Z,
           }}
         >
-          <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 10, letterSpacing: '.16em', color: '#9ec7ef', textTransform: 'uppercase' }}>
+          <div style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 10, letterSpacing: '.16em', color: theme.map.chromeEyebrow, textTransform: 'uppercase' }}>
             Latest sightings
           </div>
           {latest.map((s, i) => {
@@ -269,9 +269,9 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
                     <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#f4f8fd', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {s.label}
-                      {s.count ? <span style={{ color: '#c3d3e4', fontWeight: 400 }}> · {s.count}</span> : null}
+                      {s.count ? <span style={{ color: theme.map.chromeText, fontWeight: 400 }}> · {s.count}</span> : null}
                     </span>
-                    <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: '#c3d3e4', flexShrink: 0 }}>{s.hoursAgoLabel}</span>
+                    <span style={{ fontFamily: FONT_FAMILIES.mono, fontSize: 11, color: theme.map.chromeText, flexShrink: 0 }}>{s.hoursAgoLabel}</span>
                   </div>
                   {/* The observer's own words — the part that says what was actually seen. */}
                   {s.note ? (
@@ -279,7 +279,7 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
                       style={{
                         fontSize: 12,
                         lineHeight: 1.3,
-                        color: '#b9cade',
+                        color: theme.map.chromeNote,
                         marginTop: 1,
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
@@ -288,7 +288,7 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
                       }}
                     >
                       {s.note}
-                      {s.reports > 1 ? <span style={{ color: '#8ba3bd' }}> · {s.reports} reports</span> : null}
+                      {s.reports > 1 ? <span style={{ color: theme.map.chromeFaint }}> · {s.reports} reports</span> : null}
                     </div>
                   ) : null}
                 </div>
@@ -314,8 +314,8 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
               height: 30,
               borderRadius: 8,
               border: '1px solid rgba(255,255,255,.12)',
-              background: 'rgba(10,20,32,.45)',
-              color: '#c3d3e4',
+              background: `rgba(${theme.map.chromeRgb},.45)`,
+              color: theme.map.chromeText,
               fontFamily: FONT_FAMILIES.mono,
               fontSize: 17,
               lineHeight: 1,

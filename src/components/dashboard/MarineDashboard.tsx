@@ -14,6 +14,9 @@ import StockTicker, { TICKER_HEIGHT } from './StockTicker';
 import { DashboardDataProvider } from './DashboardDataContext';
 import { useDashboardTheme } from './DashboardThemeContext';
 import { FONT_FAMILIES } from './theme';
+import SeasonalLayer from './seasonal/SeasonalLayer';
+import { useSeason, SEASON_LABEL } from './seasonal/season';
+import { seasonalTheme } from './seasonal/palette';
 
 // Leaflet touches `window`, so the map panel can't be server-rendered.
 const MarineMapPanel = dynamic(() => import('./MarineMapPanel'), { ssr: false });
@@ -85,8 +88,11 @@ function useCalendarReveal() {
 }
 
 export default function MarineDashboard() {
-  const { theme, themeId, toggleTheme } = useDashboardTheme();
+  const { theme: baseTheme, themeId, toggleTheme } = useDashboardTheme();
   const { show: showCalendar, reveal, onCalendarEnter, onCalendarLeave } = useCalendarReveal();
+  const { season, calendarSeason, toggle: toggleSeason } = useSeason();
+  // Everything wears the season's palette except the sports panels, which keep the base theme.
+  const theme = seasonalTheme(baseTheme, season);
 
   return (
     <DashboardDataProvider>
@@ -108,8 +114,12 @@ export default function MarineDashboard() {
             boxSizing: 'border-box',
             fontFamily: FONT_FAMILIES.body,
             position: 'relative',
+            // Own stacking context, so the seasonal backdrop (z-index -1) sits above the screen
+            // background but below the panels.
+            isolation: 'isolate',
           }}
         >
+          <SeasonalLayer season={season} layer="back" theme={theme} />
           {/* Left column: Our Events (top quarter) over Local Events (bottom three quarters) */}
           <div style={{ gridRow: 1, display: 'flex', flexDirection: 'column', gap: 22, minHeight: 0, minWidth: 0 }}>
             <div onMouseEnter={reveal} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -138,8 +148,8 @@ export default function MarineDashboard() {
                   <MarineMapPanel theme={theme} />
                 </div>
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 22 }}>
-                  <SportsPanel team="mariners" theme={theme} />
-                  <SportsPanel team="seahawks" theme={theme} />
+                  <SportsPanel team="mariners" theme={baseTheme} />
+                  <SportsPanel team="seahawks" theme={baseTheme} />
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 22, minHeight: 0 }}>
@@ -187,7 +197,29 @@ export default function MarineDashboard() {
           >
             {themeId === 'command-center' ? 'Daylight Glass' : 'Command Center'}
           </button>
+
+          <button
+            onClick={toggleSeason}
+            style={{
+              flexShrink: 0,
+              fontFamily: FONT_FAMILIES.mono,
+              fontSize: 10,
+              letterSpacing: '.08em',
+              color: theme.dim,
+              background: 'transparent',
+              border: `1px solid ${theme.isLight ? 'rgba(20,34,47,.12)' : 'rgba(255,255,255,.08)'}`,
+              borderRadius: 999,
+              padding: '4px 10px',
+              cursor: 'pointer',
+              opacity: 0.5,
+            }}
+            title={season ? 'Hide seasonal decorations' : 'Show seasonal decorations'}
+          >
+            {season ? `${SEASON_LABEL[season]} on` : `${SEASON_LABEL[calendarSeason]} off`}
+          </button>
           </div>
+
+          <SeasonalLayer season={season} layer="front" theme={theme} />
         </div>
       </ScaleToFit>
     </DashboardDataProvider>
