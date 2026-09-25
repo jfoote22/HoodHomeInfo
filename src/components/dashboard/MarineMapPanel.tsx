@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet';
 import { DivIcon, LatLngBounds, type Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { DashboardTheme, FONT_FAMILIES } from './theme';
@@ -162,24 +162,11 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
           <Popup>Union, WA</Popup>
         </Marker>
 
-        {/* Trails first: a group's earlier reported positions, drawn as a faint thread with a
-            small dot at each report. Vector layers live in Leaflet's overlayPane (z-index 400)
-            and markers in markerPane (600), so the labelled pins always sit on top. */}
-        {sightings.map((s: GeoSighting) =>
-          s.trail.length ? (
-            <Polyline
-              key={`t-${s.id}`}
-              positions={[[s.lat, s.lng], ...s.trail.map((p) => [p.lat, p.lng] as [number, number])]}
-              pathOptions={{
-                color: speciesColor(s.species, theme),
-                weight: 2,
-                opacity: 0.3 * ageAlpha(s.hoursAgo),
-                dashArray: '4 5',
-                interactive: false,
-              }}
-            />
-          ) : null,
-        )}
+        {/* Trails first: a small dot at each of a group's earlier reported positions. No line
+            joins them — reports are observer-tapped positions, and a straight connector cut
+            across land and read as a swim path the data doesn't support. Vector layers live in
+            Leaflet's overlayPane (z-index 400) and markers in markerPane (600), so the labelled
+            pins always sit on top. */}
         {sightings.flatMap((s: GeoSighting) =>
           s.trail.map((p, i) => (
             <CircleMarker
