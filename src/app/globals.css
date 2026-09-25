@@ -450,6 +450,19 @@ button, select, input {
   50% { transform: translateX(0) rotate(10deg) rotateX(55deg); }
   100% { transform: translateX(22px) rotate(45deg) rotateX(0deg); }
 }
+/* Autumn leaf piles (seasonal/fall.tsx): each layer of a pile drops a few pixels and fades
+   into place once, a beat after the one below it, then stays put. */
+.hh-leaf-settle {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: hhLeafSettle 1.8s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+@keyframes hhLeafSettle {
+  0% { opacity: 0; transform: translateY(-18px) rotate(-3deg); }
+  55% { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+
 /* Snow (seasonal/winter.tsx) reuses .hh-leaf-fall for the descent. Dots drift side to side;
    the larger crystals turn slowly as they fall. */
 .hh-snow-sway {
