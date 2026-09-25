@@ -142,7 +142,7 @@ export default function MarineMapPanel({ theme }: { theme: DashboardTheme }) {
   };
 
   return (
-    <div style={{ position: 'relative', borderRadius: 22, overflow: 'hidden', border: `1px solid ${theme.panelBorder}`, boxShadow: theme.panelShadow, height: '100%' }}>
+    <div data-hh-panel style={{ position: 'relative', borderRadius: 22, overflow: 'hidden', border: `1px solid ${theme.panelBorder}`, boxShadow: theme.panelShadow, height: '100%' }}>
       <MapContainer
         center={UNION_WA}
         zoom={9}

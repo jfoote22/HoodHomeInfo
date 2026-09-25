@@ -153,7 +153,7 @@ export default function CalendarView({ theme }: { theme: DashboardTheme; active?
   const cellBg = theme.isLight ? 'rgba(20,34,47,.03)' : 'rgba(255,255,255,.02)';
 
   return (
-    <div
+    <div data-hh-panel
       style={{
         width: '100%',
         height: '100%',

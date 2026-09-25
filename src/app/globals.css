@@ -450,6 +450,45 @@ button, select, input {
   50% { transform: translateX(0) rotate(10deg) rotateX(55deg); }
   100% { transform: translateX(22px) rotate(45deg) rotateX(0deg); }
 }
+/* Snow (seasonal/winter.tsx) reuses .hh-leaf-fall for the descent. Dots drift side to side;
+   the larger crystals turn slowly as they fall. */
+.hh-snow-sway {
+  animation-name: hhSnowSway;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  will-change: transform;
+}
+.hh-snow-spin {
+  animation-name: hhSnowSpin;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  will-change: transform;
+}
+@keyframes hhSnowSway {
+  from { transform: translateX(-14px); }
+  to { transform: translateX(14px); }
+}
+@keyframes hhSnowSpin {
+  from { transform: translateX(-18px) rotate(-40deg); }
+  to { transform: translateX(18px) rotate(40deg); }
+}
 @media (prefers-reduced-motion: reduce) {
   .hh-leaf-fall { display: none; }
+}
+
+/* Winter palette: the basemap goes to a pale icy steel blue. */
+.hh-dark-tiles-winter {
+  filter: brightness(0.72) sepia(0.6) hue-rotate(170deg) saturate(1.25) contrast(1.05);
+}
+
+/* Settled snow (seasonal/snowpack.tsx) builds up over the first half minute after load. */
+.hh-snow-build {
+  transform-origin: 50% 100%;
+  animation: hhSnowBuild 30s ease-out both;
+}
+@keyframes hhSnowBuild {
+  from { transform: scaleY(0.15); }
+  to { transform: scaleY(1); }
 }

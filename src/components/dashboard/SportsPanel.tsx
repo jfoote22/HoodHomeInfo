@@ -227,7 +227,7 @@ export default function SportsPanel({ team, theme }: { team: 'mariners' | 'seaha
   const headlines: NewsItem[] = moves.length ? moves : (data?.news || []).slice(0, 2);
 
   return (
-    <div
+    <div data-hh-panel
       style={{
         position: 'relative',
         flex: 1,

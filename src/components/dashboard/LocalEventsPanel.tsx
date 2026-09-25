@@ -319,7 +319,7 @@ export default function LocalEventsPanel({ theme }: { theme: DashboardTheme }) {
     : `Auto-updating · ${events.length} upcoming · ${sources.map((s) => SOURCE_LABEL[s] || s).join(' + ')} · pulled ${minutesAgo(fetchedAt, now)}`;
 
   return (
-    <div
+    <div data-hh-panel
       style={{
         flex: 3,
         minHeight: 0,

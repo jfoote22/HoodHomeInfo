@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { DashboardTheme } from '../theme';
 import type { Season } from './season';
 import { FallBackdrop, FallForeground } from './fall';
+import { WinterBackdrop, WinterForeground } from './winter';
 
 // Two decoration layers per season, both pointer-events:none so nothing on the dashboard
 // changes behaviour:
@@ -18,7 +19,11 @@ type LayerProps = { theme: DashboardTheme };
 
 const DECOR: Partial<Record<Season, { back?: (p: LayerProps) => ReactNode; front?: (p: LayerProps) => ReactNode }>> = {
   fall: { back: FallBackdrop, front: FallForeground },
+  winter: { back: WinterBackdrop, front: WinterForeground },
 };
+
+/** Seasons that have art, in calendar order, for the season button to cycle through. */
+export const DECORATED_SEASONS = (['spring', 'summer', 'fall', 'winter'] as Season[]).filter((s) => DECOR[s]);
 
 export default function SeasonalLayer({ season, layer, theme }: { season: Season | null; layer: 'back' | 'front'; theme: DashboardTheme }) {
   const render = season ? DECOR[season]?.[layer] : undefined;

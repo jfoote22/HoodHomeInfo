@@ -12,7 +12,7 @@ export default function WeatherTidesPanel({ theme }: { theme: DashboardTheme }) 
   const viewH = tide?.viewH ?? 120;
 
   return (
-    <div
+    <div data-hh-panel
       style={{
         flex: 1.05,
         background: theme.panelBg,

@@ -46,7 +46,7 @@ export default function StockTicker({ theme }: { theme: DashboardTheme }) {
   const duration = Math.max(45, quotes.length * 9);
 
   return (
-    <div
+    <div data-hh-panel
       style={{
         height: TICKER_HEIGHT,
         background: theme.panelBg,

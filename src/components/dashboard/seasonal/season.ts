@@ -5,8 +5,8 @@ import { DASHBOARD_TZ } from '../../../lib/time';
 
 // Seasonal flair is purely decorative: it layers art behind and in front of the panels and
 // never changes their layout or content. The season follows the calendar in Union's time zone;
-// ?season=fall|winter|spring|summer pins one (handy for previewing), ?season=off or the toggle
-// beside the theme button turns the decorations off on this device.
+// ?season=fall|winter|spring|summer pins one (handy for previewing) and ?season=off turns them
+// off. The button beside the theme button cycles the same settings on this device.
 
 export type Season = 'spring' | 'summer' | 'fall' | 'winter';
 export type SeasonSetting = Season | 'auto' | 'off';
@@ -68,11 +68,15 @@ export function useSeason() {
   const season: Season | null =
     setting === null || setting === 'off' ? null : setting === 'auto' ? calendarSeason : setting;
 
-  const toggle = () => {
-    const next: SeasonSetting = season ? 'off' : 'auto';
+  /** Steps through: auto (the calendar's season) → each other season that has decorations →
+   *  off → auto. `decorated` lists the seasons with art, in display order. */
+  const cycle = (decorated: Season[]) => {
+    const order: SeasonSetting[] = ['auto', ...decorated.filter((s) => s !== calendarSeason), 'off'];
+    const i = order.indexOf(setting ?? 'auto');
+    const next = order[(i + 1) % order.length]; // a pinned season with no art falls back to auto
     window.localStorage.setItem(STORAGE_KEY, next);
     setSetting(next);
   };
 
-  return { season, calendarSeason, toggle };
+  return { season, setting, calendarSeason, cycle };
 }

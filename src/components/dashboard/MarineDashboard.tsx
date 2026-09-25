@@ -14,7 +14,7 @@ import StockTicker, { TICKER_HEIGHT } from './StockTicker';
 import { DashboardDataProvider } from './DashboardDataContext';
 import { useDashboardTheme } from './DashboardThemeContext';
 import { FONT_FAMILIES } from './theme';
-import SeasonalLayer from './seasonal/SeasonalLayer';
+import SeasonalLayer, { DECORATED_SEASONS } from './seasonal/SeasonalLayer';
 import { useSeason, SEASON_LABEL } from './seasonal/season';
 import { seasonalTheme } from './seasonal/palette';
 
@@ -90,7 +90,7 @@ function useCalendarReveal() {
 export default function MarineDashboard() {
   const { theme: baseTheme, themeId, toggleTheme } = useDashboardTheme();
   const { show: showCalendar, reveal, onCalendarEnter, onCalendarLeave } = useCalendarReveal();
-  const { season, calendarSeason, toggle: toggleSeason } = useSeason();
+  const { season, setting: seasonSetting, cycle: cycleSeason } = useSeason();
   // Everything wears the season's palette except the sports panels, which keep the base theme.
   const theme = seasonalTheme(baseTheme, season);
 
@@ -99,6 +99,7 @@ export default function MarineDashboard() {
       <KioskBehaviors />
       <ScaleToFit background={theme.isLight ? '#0b0e13' : '#000'}>
         <div
+          data-hh-grid
           style={{
             width: 1920,
             height: 1080,
@@ -199,7 +200,7 @@ export default function MarineDashboard() {
           </button>
 
           <button
-            onClick={toggleSeason}
+            onClick={() => cycleSeason(DECORATED_SEASONS)}
             style={{
               flexShrink: 0,
               fontFamily: FONT_FAMILIES.mono,
@@ -213,9 +214,9 @@ export default function MarineDashboard() {
               cursor: 'pointer',
               opacity: 0.5,
             }}
-            title={season ? 'Hide seasonal decorations' : 'Show seasonal decorations'}
+            title="Cycle seasonal decorations: automatic, each season, off"
           >
-            {season ? `${SEASON_LABEL[season]} on` : `${SEASON_LABEL[calendarSeason]} off`}
+            {season ? `${SEASON_LABEL[season]}${seasonSetting === 'auto' ? ' · auto' : ''}` : 'Seasons off'}
           </button>
           </div>
 

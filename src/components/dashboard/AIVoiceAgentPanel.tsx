@@ -60,7 +60,7 @@ export default function AIVoiceAgentPanel({ theme, compact = false }: { theme: D
   const statusLabel = isLoading ? 'Thinking' : error ? 'Offline' : 'Idle';
 
   return (
-    <div
+    <div data-hh-panel
       style={{
         background: theme.panelBg,
         backdropFilter: theme.panelBackdropBlur,

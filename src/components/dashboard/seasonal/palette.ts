@@ -81,8 +81,77 @@ const FALL_LIGHT: Overrides = {
   },
 };
 
+// Winter: frost on glass. A lighter, icier blue than the everyday navy, panels that read as
+// frosted glass (translucent, blurred, with a pale rim), and cranberry for the warm accent.
+const WINTER_MAP_CHROME = {
+  chromeRgb: '22,42,66',
+  scrimRgb: '12,26,44',
+  chromeEyebrow: '#d3ecff',
+  chromeText: '#d8e7f4',
+  chromeNote: '#c4d7e8',
+  chromeFaint: '#93abc2',
+  chromePill: '#eaf4fc',
+};
+
+const WINTER_DARK: Overrides = {
+  screenBg: 'radial-gradient(120% 90% at 50% 0%, #3a6288 0%, #1d3a58 50%, #122840 100%)',
+  panelBg: 'rgba(30,54,82,.74)',
+  panelBackdropBlur: 'blur(14px)',
+  panelBorder: 'rgba(215,238,255,.24)',
+  panelShadow: '0 18px 50px rgba(4,14,28,.45), inset 0 1px 0 rgba(240,248,255,.18), inset 0 0 40px rgba(200,230,255,.06)',
+
+  text: '#f3f9ff',
+  eyebrow: '#abc6df',
+  muted: '#b3c9de',
+  dim: '#7f98b2',
+  bodySecondary: '#dde9f6',
+
+  commandBarBg: 'rgba(22,44,70,.8)',
+  commandBarBorder: 'rgba(215,238,255,.2)',
+
+  accentA: '#bfe6ff',
+  accentA2: '#7cc8f0',
+  accentB: '#ff6b81',
+  iconAccent: '#f5c542',
+
+  eventStripeA: '#2a4668',
+  eventStripeB: '#335275',
+  dayPillBg: 'rgba(191,230,255,.15)',
+  dayPillText: '#d6efff',
+
+  map: { ...WINTER_MAP_CHROME, darkTileClass: 'hh-dark-tiles-winter' },
+};
+
+const WINTER_LIGHT: Overrides = {
+  screenBg: 'linear-gradient(160deg, #eef7fd, #c8e0f2)',
+  panelBg: 'rgba(255,255,255,.62)',
+  panelBorder: 'rgba(255,255,255,.95)',
+  panelShadow: '0 20px 50px rgba(40,90,140,.16), inset 0 0 30px rgba(205,232,250,.4)',
+
+  text: '#13263a',
+  eyebrow: '#5f7d98',
+  muted: '#546f88',
+  dim: '#93aac0',
+  bodySecondary: '#2d4863',
+
+  commandBarBorder: 'rgba(19,38,58,.12)',
+  commandBarShadow: '0 6px 16px rgba(40,90,140,.08)',
+
+  accentA: '#1d7fc1',
+  accentA2: '#4fb0e6',
+  accentB: '#c52b4a',
+
+  eventStripeA: '#d6e8f5',
+  eventStripeB: '#c5dcee',
+  dayPillBg: 'rgba(29,127,193,.1)',
+  dayPillText: '#16679e',
+
+  map: WINTER_MAP_CHROME,
+};
+
 const PALETTES: Partial<Record<Season, { dark: Overrides; light: Overrides }>> = {
   fall: { dark: FALL_DARK, light: FALL_LIGHT },
+  winter: { dark: WINTER_DARK, light: WINTER_LIGHT },
 };
 
 export function seasonalTheme(base: DashboardTheme, season: Season | null): DashboardTheme {

@@ -61,7 +61,7 @@ export default function OurEventsPanel({ theme }: { theme: DashboardTheme }) {
   );
 
   return (
-    <div
+    <div data-hh-panel
       style={{
         flex: 1,
         minHeight: 0,
